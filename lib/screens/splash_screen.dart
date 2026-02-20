@@ -26,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: Color.fromARGB(255, 215, 232, 186),
+      backgroundColor: Color(0xFFD7E8BA),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -40,10 +40,10 @@ class _SplashScreenState extends State<SplashScreen> {
             Text(
               "Umoja Finance Services",
               style: TextStyle(
-                color: Color.fromARGB(255, 250, 250, 250),
-                fontSize: 24,
+                color: Color(0xFF795548),
+                fontSize: 35,
                 fontWeight: FontWeight.bold,
-                backgroundColor: Color.fromARGB(255, 215, 232, 186)
+                backgroundColor: Color(0xFFD7E8BA)
               ),
             ),
             SizedBox(height: 40),

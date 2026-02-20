@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screens/main_navigation.dart';
 import 'signup_screen.dart';
-import 'forgot_password_screens.dart'; 
+import 'forgot_password_screens.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -110,7 +112,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
 
                 // Login Button
@@ -131,11 +132,20 @@ class _LoginScreenState extends State<LoginScreen> {
                               setState(() => _isLoading = true);
                               Future.delayed(const Duration(seconds: 2), () {
                                 setState(() => _isLoading = false);
+
+                                // Show login success
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text("Logged in successfully!"),
-                                    duration: Duration(seconds: 2),
+                                    duration: Duration(seconds: 1),
                                   ),
+                                );
+
+                                // Navigate to HomeScreen
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const MainNavigation()),
                                 );
                               });
                             }
@@ -152,8 +162,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                   ),
                 ),
-                const SizedBox(height: 20),
 
+                const SizedBox(height: 20),
                 const Text(
                   "Or login with",
                   style: TextStyle(color: Colors.brown, fontSize: 14),
@@ -180,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: CircleAvatar(
                         radius: 25,
                         backgroundColor: Colors.white,
-                        child: Image.asset('images/facebook.png', height: 28),
+                        child: Image.asset('images/facebook.jpg', height: 28),
                       ),
                     ),
                     const SizedBox(width: 20),
@@ -190,12 +200,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: CircleAvatar(
                         radius: 25,
                         backgroundColor: Colors.white,
-                        child: Image.asset('images/apple.png', height: 28),
+                        child: Image.asset('images/Apple-Logo.jpg', height: 28),
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 30),
 
                 // Signup Link

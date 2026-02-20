@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/authScreens/signup_screen.dart';
+import 'package:flutter_application_1/authScreens/verfication_screens.dart';
+import 'package:flutter_application_1/screens/main_navigation.dart';
+import 'package:flutter_application_1/screens/saving_screens.dart';
 import 'screens/splash_screen.dart';
 import 'authScreens/login_screens.dart';
 
@@ -24,6 +27,10 @@ class MyApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
+        '/verification': (context) => const VerificationScreen(),
+        '/savings': (context) => const SavingsScreen(),
+        '/main': (context) => const MainNavigation(),
+
       },
     );
   }

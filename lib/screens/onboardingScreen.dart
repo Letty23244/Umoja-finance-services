@@ -22,7 +22,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5), // soft background tone
+      backgroundColor: const Color(0xFFD7E8BA), // soft background tone
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: PageView(
@@ -72,8 +72,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   );
                 },
                 child: const Text(
-                  'Get Started',
-                  style: TextStyle(fontSize: 20, color: Colors.white),
+                  'start your journey',
+                  style: TextStyle(fontSize: 20, color: Colors.brown),
                 ),
               ),
             )
@@ -84,20 +84,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   TextButton(
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFFA1887F), // Light brown background
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                     onPressed: () => _controller.jumpToPage(2),
                     child: const Text(
-                      'Skip',
-                      style: TextStyle(color: Color(0xFFA1887F)), // light brown
+                      'join later',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ),
                   TextButton(
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFFA1887F), // Light brown background
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                     onPressed: () => _controller.nextPage(
                       duration: const Duration(milliseconds: 500),
                       curve: Curves.easeInOut,
                     ),
                     child: const Text(
-                      'Next',
-                      style: TextStyle(color: Color(0xFF8BC34A)), // light green
+                      'continue',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ),
                 ],

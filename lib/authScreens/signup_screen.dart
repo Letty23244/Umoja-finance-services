@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/authScreens/verfication_screens.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -19,37 +20,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
 
-  void _signUp() {
-    final currentContext = context;
-
+  void _signUp() async {
     String name = nameController.text.trim();
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(currentContext).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please enter your full name")),
       );
       return;
     }
 
     if (email.isEmpty) {
-      ScaffoldMessenger.of(currentContext).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please enter your email")),
       );
       return;
     }
 
     if (password.isEmpty) {
-      ScaffoldMessenger.of(currentContext).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please enter your password")),
       );
       return;
     }
 
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(currentContext).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Passwords do not match")),
       );
       return;
@@ -57,26 +56,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _isLoading = true);
 
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() => _isLoading = false);
+    // Simulate signup process
+    await Future.delayed(const Duration(seconds: 2));
 
-   
-      ScaffoldMessenger.of(currentContext).showSnackBar(
-        const SnackBar(
-          content: Text("Sign up successful!"),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    setState(() => _isLoading = false);
 
-      // Navigate to Login screen
-      Navigator.pushReplacementNamed(currentContext, '/login');
-    });
+    // Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Sign up successful!"),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    // Navigate to verification screen
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const VerificationScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFD7E8BA), // Light green
+      backgroundColor: const Color(0xFFD7E8BA),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -93,7 +96,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF795548), // Light brown
+                  color: Color(0xFF795548),
                 ),
               ),
               const SizedBox(height: 8),
@@ -223,7 +226,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Google
                   InkWell(
                     onTap: () {},
                     borderRadius: BorderRadius.circular(50),
@@ -234,7 +236,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(width: 20),
-                  // Facebook
                   InkWell(
                     onTap: () {},
                     borderRadius: BorderRadius.circular(50),
@@ -245,7 +246,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(width: 20),
-                  // Apple
                   InkWell(
                     onTap: () {},
                     borderRadius: BorderRadius.circular(50),
