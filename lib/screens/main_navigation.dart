@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screens/profile_screen.dart';
 import 'home_screen.dart';
 import 'saving_screens.dart';
 import 'loan_screen.dart';
@@ -19,6 +20,7 @@ class _MainNavigationState extends State<MainNavigation> {
     SavingsScreen(),
     LoansScreen(),
     StatementsScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -55,6 +57,8 @@ class _MainNavigationState extends State<MainNavigation> {
             icon: Icon(Icons.receipt_long),
             label: "Statements",
           ),
+          BottomNavigationBarItem(icon: Icon(Icons.person),
+              label: "Profile"),
         ],
       ),
     );
