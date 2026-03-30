@@ -1,7 +1,7 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/authScreens/verfication_screens.dart';
+import 'package:provider/provider.dart';
+import 'auth_provider_screen.dart';
+import 'verfication_screens.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -13,8 +13,10 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
@@ -23,57 +25,49 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void _signUp() async {
     String name = nameController.text.trim();
     String email = emailController.text.trim();
+    String phone = phoneController.text.trim();
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
 
-    if (name.isEmpty) {
+    if (name.isEmpty ||
+        email.isEmpty ||
+        phone.isEmpty ||
+        password.isEmpty ||
+        password != confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your full name")),
-      );
-      return;
-    }
-
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your email")),
-      );
-      return;
-    }
-
-    if (password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your password")),
-      );
-      return;
-    }
-
-    if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
+        const SnackBar(content: Text("Please fill all fields correctly")),
       );
       return;
     }
 
     setState(() => _isLoading = true);
 
-    // Simulate signup process
-    await Future.delayed(const Duration(seconds: 2));
+    final authProvider = context.read<AuthProvider>();
+    final result = await authProvider.signUp(
+      name: name,
+      email: email,
+      phone: phone,
+      password: password,
+      passwordConfirmation: confirmPassword,
+    );
 
     setState(() => _isLoading = false);
 
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Sign up successful!"),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    // Navigate to verification screen
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const VerificationScreen()),
-    );
+    if (result) {
+      // Sign up successful
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authProvider.successMessage ?? "Sign up successful")),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const VerificationScreen()),
+      );
+    } else {
+      // Sign up failed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authProvider.errorMessage ?? "Sign up failed")),
+      );
+    }
   }
 
   @override
@@ -87,10 +81,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Logo
               Image.asset('images/logo.png', height: 100),
               const SizedBox(height: 30),
-
               const Text(
                 "Create Account",
                 style: TextStyle(
@@ -104,17 +96,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 "Sign up to get started",
                 style: TextStyle(fontSize: 16, color: Colors.brown),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
 
-              // Full Name
+              // Name
               TextField(
                 controller: nameController,
                 decoration: InputDecoration(
                   labelText: "Full Name",
-                  prefixIcon: const Icon(Icons.person, color: Color(0xFF795548)),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                  prefixIcon: const Icon(
+                    Icons.person,
+                    color: Color(0xFF795548),
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
                     borderSide: BorderSide.none,
@@ -129,10 +123,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   labelText: "Email",
-                  prefixIcon: const Icon(Icons.email, color: Color(0xFF795548)),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                  prefixIcon: const Icon(Icons.email, color: Color(0xFF795548)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Phone
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: "Phone",
+                  filled: true,
+                  fillColor: Colors.white,
+                  prefixIcon: const Icon(Icons.phone, color: Color(0xFF795548)),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
                     borderSide: BorderSide.none,
@@ -147,19 +157,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
                   labelText: "Password",
+                  filled: true,
+                  fillColor: Colors.white,
                   prefixIcon: const Icon(Icons.lock, color: Color(0xFF795548)),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                      color: Colors.grey[700],
+                      _isPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
-                    onPressed: () {
-                      setState(() => _isPasswordVisible = !_isPasswordVisible);
-                    },
+                    onPressed: () => setState(
+                      () => _isPasswordVisible = !_isPasswordVisible,
+                    ),
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
                     borderSide: BorderSide.none,
@@ -174,19 +184,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 obscureText: !_isConfirmPasswordVisible,
                 decoration: InputDecoration(
                   labelText: "Confirm Password",
+                  filled: true,
+                  fillColor: Colors.white,
                   prefixIcon: const Icon(Icons.lock, color: Color(0xFF795548)),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                      color: Colors.grey[700],
+                      _isConfirmPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
-                    onPressed: () {
-                      setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible);
-                    },
+                    onPressed: () => setState(
+                      () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible,
+                    ),
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
                     borderSide: BorderSide.none,
@@ -202,82 +212,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF795548),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
                   ),
                   onPressed: _isLoading ? null : _signUp,
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           "Sign Up",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
               ),
-              const SizedBox(height: 20),
-
-              // Social Signup Text
-              const Text(
-                "Or sign up with",
-                style: TextStyle(color: Colors.brown, fontSize: 14),
-              ),
-              const SizedBox(height: 15),
-
-              // Social Buttons Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  InkWell(
-                    onTap: () {},
-                    borderRadius: BorderRadius.circular(50),
-                    child: CircleAvatar(
-                      radius: 25,
-                      backgroundColor: Colors.white,
-                      child: Image.asset('images/google.png', height: 28),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  InkWell(
-                    onTap: () {},
-                    borderRadius: BorderRadius.circular(50),
-                    child: CircleAvatar(
-                      radius: 25,
-                      backgroundColor: Colors.white,
-                      child: Image.asset('images/facebook.png', height: 28),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  InkWell(
-                    onTap: () {},
-                    borderRadius: BorderRadius.circular(50),
-                    child: CircleAvatar(
-                      radius: 25,
-                      backgroundColor: Colors.white,
-                      child: Image.asset('images/apple.png', height: 28),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
-
-              // Login Link
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Already have an account? "),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pushReplacementNamed(context, '/login');
-                    },
-                    child: const Text(
-                      "Login",
-                      style: TextStyle(
-                        color: Color(0xFF795548),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              )
             ],
           ),
         ),

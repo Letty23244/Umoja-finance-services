@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../authScreens/auth_provider_screen.dart'; // ← adjust path
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -12,31 +14,37 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
 
-  void _resetPassword() {
+  void _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    // Simulate a network request
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() => _isLoading = false);
+    final authProvider = context.read<AuthProvider>();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Password reset link sent to your email!"),
-          duration: Duration(seconds: 2),
+    final success = await authProvider.forgotPassword(
+      email: emailController.text.trim(),
+    );
+
+    setState(() => _isLoading = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? authProvider.successMessage ?? "Password reset link sent!"
+              : authProvider.errorMessage ?? "Something went wrong",
         ),
-      );
+        duration: const Duration(seconds: 3),
+      ),
+    );
 
-      // Optionally, navigate back to login
-      Navigator.pop(context);
-    });
+    if (success) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFD7E8BA), // Light green background
+      backgroundColor: const Color(0xFFD7E8BA),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -44,10 +52,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Logo
               Image.asset('images/logo.png', height: 100),
               const SizedBox(height: 30),
-
               const Text(
                 "Forgot Password",
                 style: TextStyle(
@@ -62,7 +68,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 style: TextStyle(fontSize: 16, color: Colors.brown),
               ),
               const SizedBox(height: 40),
-
               Form(
                 key: _formKey,
                 child: TextFormField(
@@ -83,7 +88,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
               ),
               const SizedBox(height: 30),
-
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -105,15 +109,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Back to Login
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text("Remembered your password? "),
                   GestureDetector(
                     onTap: () {
-                      Navigator.pop(context); // Go back to login
+                      Navigator.pop(context);
                     },
                     child: const Text(
                       "Login",

@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/authScreens/signup_screen.dart';
-import 'package:flutter_application_1/authScreens/verfication_screens.dart';
-import 'package:flutter_application_1/screens/main_navigation.dart';
-import 'package:flutter_application_1/screens/saving_screens.dart';
+import 'package:provider/provider.dart';
+import 'authScreens/signup_screen.dart';
+import 'authScreens/verfication_screens.dart';
+import 'screens/main_navigation.dart';
+import 'screens/saving_screens.dart';
 import 'screens/splash_screen.dart';
 import 'authScreens/login_screens.dart';
+import '../authScreens/auth_provider_screen.dart'; // ← add this
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -30,7 +39,6 @@ class MyApp extends StatelessWidget {
         '/verification': (context) => const VerificationScreen(),
         '/savings': (context) => const SavingsScreen(),
         '/main': (context) => const MainNavigation(),
-
       },
     );
   }
