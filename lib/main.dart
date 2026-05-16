@@ -36,7 +36,10 @@ class MyApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
-        '/verification': (context) => const VerificationScreen(),
+        '/verification': (context) {
+          final email = ModalRoute.of(context)?.settings.arguments as String? ?? '';
+          return VerificationScreen(email: email);
+        },
         '/savings': (context) => const SavingsScreen(),
         '/main': (context) => const MainNavigation(),
       },

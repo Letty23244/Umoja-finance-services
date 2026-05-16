@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // ← Email not verified — go to verification screen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const VerificationScreen()),
+        MaterialPageRoute(builder: (_) => VerificationScreen(email: emailController.text.trim())),
       );
     }
     // else: error is shown in the error banner below automatically

@@ -21,7 +21,7 @@ class _MainNavigationState extends State<MainNavigation> {
     HomeScreen(),
     SavingsScreen(),
     SavingsGoalScreen(),
-    StatementsScreen(),
+    StatementScreen(),
     ProfileScreen(),
   ];
 
