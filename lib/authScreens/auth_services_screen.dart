@@ -6,8 +6,8 @@ import '../models/auth/user_model.dart';
 import '../models/auth/auth_result.dart';
 
 class AuthService {
-  /// Android Emulator URL
-  final String baseUrl = "http://127.0.0.1:8000/api";
+  /// Render Backend URL
+  final String baseUrl = "https://umoja-financial-services-backend.onrender.com/api";
 
   /// ================= LOGIN =================
   Future<AuthResult> login({
@@ -25,13 +25,13 @@ class AuthService {
           "email": email,
           "password": password,
         }),
-      );
+      ).timeout(const Duration(seconds: 60));
 
       final data = jsonDecode(response.body);
 
-      /// EMAIL NOT VERIFIED
+      /// EMAIL NOT VERIFIED — fixed to match API response
       if (response.statusCode == 403 &&
-          data["action"] == "resend_verification") {
+          data["action"] == "verify_email") {
         return AuthResult.unverified(data["message"]);
       }
 
@@ -79,12 +79,11 @@ class AuthService {
           "password": password,
           "password_confirmation": passwordConfirmation,
         }),
-      );
+      ).timeout(const Duration(seconds: 60));
 
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 201 ||
-          response.statusCode == 200) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         final token = data["token"];
 
         final prefs = await SharedPreferences.getInstance();
@@ -120,11 +119,11 @@ class AuthService {
         "Authorization": "Bearer $token",
         "Accept": "application/json",
       },
-    );
+    ).timeout(const Duration(seconds: 60));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return UserModel.fromJson(data["data"]);
+      return UserModel.fromJson(data["user"]);
     }
 
     return null;
@@ -140,27 +139,61 @@ class AuthService {
         "Authorization": "Bearer $token",
         "Accept": "application/json",
       },
-    );
+    ).timeout(const Duration(seconds: 60));
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove("token");
   }
 
   /// ================= WITHDRAW =================
-Future<Map<String, dynamic>> withdraw({
-  required String amount,
-  required String method,
-  String? description,
-}) async {
-  try {
+  Future<Map<String, dynamic>> withdraw({
+    required String amount,
+    required String method,
+    String? description,
+  }) async {
+    try {
+      final token = await getToken();
+
+      if (token == null) {
+        throw Exception("User not authenticated");
+      }
+
+      final response = await http.post(
+        Uri.parse("$baseUrl/withdraws"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "amount": amount,
+          "method": method,
+          "description": description ?? "",
+        }),
+      ).timeout(const Duration(seconds: 60));
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return data;
+      }
+
+      throw Exception(data["message"] ?? "Withdraw failed");
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  /// ================= DEPOSIT =================
+  Future<Map<String, dynamic>> deposit({
+    required String amount,
+    required String method,
+    String? description,
+  }) async {
     final token = await getToken();
 
-    if (token == null) {
-      throw Exception("User not authenticated");
-    }
-
     final response = await http.post(
-      Uri.parse("$baseUrl/withdraws"),
+      Uri.parse("$baseUrl/deposits"),
       headers: {
         "Authorization": "Bearer $token",
         "Accept": "application/json",
@@ -171,70 +204,34 @@ Future<Map<String, dynamic>> withdraw({
         "method": method,
         "description": description ?? "",
       }),
-    );
+    ).timeout(const Duration(seconds: 60));
 
     final data = jsonDecode(response.body);
 
-    if (response.statusCode == 200 ||
-        response.statusCode == 201) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       return data;
     }
 
-    throw Exception(data["message"] ?? "Withdraw failed");
-  } catch (e) {
-    throw Exception(e.toString());
-  }
-}
-
-// ======deposit=========
-Future<Map<String, dynamic>> deposit({
-  required String amount,
-  required String method,
-  String? description,
-}) async {
-  final token = await getToken();
-
-  final response = await http.post(
-    Uri.parse("$baseUrl/deposits"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-    },
-    body: jsonEncode({
-      "amount": amount,
-      "method": method,
-      "description": description ?? "",
-    }),
-  );
-
-  final data = jsonDecode(response.body);
-
-  if (response.statusCode == 200 || response.statusCode == 201) {
-    return data;
+    throw Exception(data["message"] ?? "Deposit failed");
   }
 
-  throw Exception(data["message"] ?? "Deposit failed");
-}
-
- /// ================= TRANSACTIONS =================
-  /// GET /api/wallet/transactions
+  /// ================= TRANSACTIONS =================
   Future<List<Map<String, dynamic>>> getTransactions() async {
     try {
       final token = await getToken();
- 
+
       if (token == null) throw Exception("User not authenticated");
- 
+
       final response = await http.get(
         Uri.parse("$baseUrl/wallet/transactions"),
         headers: {
           "Authorization": "Bearer $token",
           "Accept": "application/json",
         },
-      );
- 
+      ).timeout(const Duration(seconds: 60));
+
       final data = jsonDecode(response.body);
- 
+
       if (response.statusCode == 200) {
         if (data is List) {
           return List<Map<String, dynamic>>.from(data);
@@ -243,22 +240,21 @@ Future<Map<String, dynamic>> deposit({
         }
         return [];
       }
- 
+
       throw Exception(data["message"] ?? "Failed to fetch transactions");
     } catch (e) {
       throw Exception(e.toString());
     }
   }
- 
+
   /// ================= TRANSACTION DEPOSIT =================
-  /// POST /api/wallet/transactions/deposit
   Future<Map<String, dynamic>> transactionDeposit({
     required String amount,
     required String method,
     String? description,
   }) async {
     final token = await getToken();
- 
+
     final response = await http.post(
       Uri.parse("$baseUrl/wallet/transactions/deposit"),
       headers: {
@@ -271,24 +267,23 @@ Future<Map<String, dynamic>> deposit({
         "method": method,
         "description": description ?? "",
       }),
-    );
- 
+    ).timeout(const Duration(seconds: 60));
+
     final data = jsonDecode(response.body);
- 
+
     if (response.statusCode == 200 || response.statusCode == 201) return data;
- 
+
     throw Exception(data["message"] ?? "Transaction deposit failed");
   }
- 
+
   /// ================= TRANSACTION WITHDRAW =================
-  /// POST /api/wallet/transactions/withdraw
   Future<Map<String, dynamic>> transactionWithdraw({
     required String amount,
     required String method,
     String? description,
   }) async {
     final token = await getToken();
- 
+
     final response = await http.post(
       Uri.parse("$baseUrl/wallet/transactions/withdraw"),
       headers: {
@@ -301,12 +296,12 @@ Future<Map<String, dynamic>> deposit({
         "method": method,
         "description": description ?? "",
       }),
-    );
- 
+    ).timeout(const Duration(seconds: 60));
+
     final data = jsonDecode(response.body);
- 
+
     if (response.statusCode == 200 || response.statusCode == 201) return data;
- 
+
     throw Exception(data["message"] ?? "Transaction withdraw failed");
   }
 
@@ -320,7 +315,7 @@ Future<Map<String, dynamic>> deposit({
           "Content-Type": "application/json",
         },
         body: jsonEncode({"email": email}),
-      );
+      ).timeout(const Duration(seconds: 60));
 
       final data = jsonDecode(response.body);
 
@@ -333,7 +328,6 @@ Future<Map<String, dynamic>> deposit({
       return AuthResult.failure(e.toString());
     }
   }
-  
 
   /// ================= RESET PASSWORD =================
   Future<AuthResult> resetPassword({
@@ -355,7 +349,7 @@ Future<Map<String, dynamic>> deposit({
           "password": password,
           "password_confirmation": passwordConfirmation,
         }),
-      );
+      ).timeout(const Duration(seconds: 60));
 
       final data = jsonDecode(response.body);
 
@@ -370,114 +364,113 @@ Future<Map<String, dynamic>> deposit({
   }
 
   /// ================= SUPPORT TICKETS =================
-/// POST /api/support-tickets
-Future<Map<String, dynamic>> sendSupportTicket({
-  required String subject,
-  required String message,
-}) async {
-  try {
+  Future<Map<String, dynamic>> sendSupportTicket({
+    required String subject,
+    required String message,
+  }) async {
+    try {
+      final token = await getToken();
+
+      if (token == null) {
+        throw Exception("User not authenticated");
+      }
+
+      final response = await http.post(
+        Uri.parse("$baseUrl/support-tickets"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "subject": subject,
+          "message": message,
+        }),
+      ).timeout(const Duration(seconds: 60));
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return data;
+      }
+
+      throw Exception(data["message"] ?? "Failed to send support ticket");
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  /// ================= NOTIFICATIONS =================
+  Future<List<dynamic>> getNotifications() async {
     final token = await getToken();
 
-    if (token == null) {
-      throw Exception("User not authenticated");
-    }
-
-    final response = await http.post(
-      Uri.parse("$baseUrl/support-tickets"),
+    final response = await http.get(
+      Uri.parse("$baseUrl/notifications"),
       headers: {
         "Authorization": "Bearer $token",
         "Accept": "application/json",
-        "Content-Type": "application/json",
       },
-      body: jsonEncode({
-        "subject": subject,
-        "message": message,
-      }),
-    );
+    ).timeout(const Duration(seconds: 60));
 
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode == 200 ||
-        response.statusCode == 201) {
-      return data;
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
     }
 
-    throw Exception(data["message"] ?? "Failed to send support ticket");
-  } catch (e) {
-    throw Exception(e.toString());
-  }
-}
-
-Future<List<dynamic>> getNotifications() async {
-  final token = await getToken();
-
-  final response = await http.get(
-    Uri.parse("$baseUrl/notifications"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Accept": "application/json",
-    },
-  );
-
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
+    throw Exception("Failed to load notifications");
   }
 
-  throw Exception("Failed to load notifications");
-}
+  Future<int> getUnreadCount() async {
+    final token = await getToken();
 
-Future<int> getUnreadCount() async {
-  final token = await getToken();
+    final response = await http.get(
+      Uri.parse("$baseUrl/notifications/unread-count"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
+    ).timeout(const Duration(seconds: 60));
 
-  final response = await http.get(
-    Uri.parse("$baseUrl/notifications/unread-count"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Accept": "application/json",
-    },
-  );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['count'];
+    }
 
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body);
-    return data['count'];
+    return 0;
   }
 
-  return 0;
-}
+  Future<void> markNotificationRead(int id) async {
+    final token = await getToken();
 
-Future<void> markNotificationRead(int id) async {
-  final token = await getToken();
+    await http.put(
+      Uri.parse("$baseUrl/notifications/$id/read"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
+    ).timeout(const Duration(seconds: 60));
+  }
 
-  await http.put(
-    Uri.parse("$baseUrl/notifications/$id/read"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Accept": "application/json",
-    },
-  );
-}
+  Future<void> markAllNotificationsRead() async {
+    final token = await getToken();
 
-Future<void> markAllNotificationsRead() async {
-  final token = await getToken();
+    await http.put(
+      Uri.parse("$baseUrl/notifications/read-all"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
+    ).timeout(const Duration(seconds: 60));
+  }
 
-  await http.put(
-    Uri.parse("$baseUrl/notifications/read-all"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Accept": "application/json",
-    },
-  );
-}
+  Future<void> deleteNotification(int id) async {
+    final token = await getToken();
 
-Future<void> deleteNotification(int id) async {
-  final token = await getToken();
-
-  await http.delete(
-    Uri.parse("$baseUrl/notifications/$id"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Accept": "application/json",
-    },
-  );
-}
+    await http.delete(
+      Uri.parse("$baseUrl/notifications/$id"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
+    ).timeout(const Duration(seconds: 60));
+  }
 }

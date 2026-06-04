@@ -17,7 +17,7 @@ class _StatementScreenState extends State<StatementScreen> {
   static const Color darkGreen = Color(0xFF4CAF50);
   static const Color bgColor = Color(0xFFF5F5F0);
 
-  final String baseUrl = "http://127.0.0.1:8000/api";
+  final String baseUrl = "https://umoja-financial-services-backend.onrender.com/api";
 
   bool isLoading = true;
   String? error;

@@ -23,7 +23,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://127.0.0.1:8000/api/check-verification"),
+        Uri.parse("https://umoja-financial-services-backend.onrender.com/api/check-verification"),
         headers: {
           "Content-Type": "application/json",
         },

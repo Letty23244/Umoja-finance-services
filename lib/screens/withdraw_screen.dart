@@ -67,18 +67,20 @@ class _WithdrawScreenState extends State<WithdrawScreen>
         description: _descController.text,
       );
       setState(() => _loading = false);
-      if (response["status"] == "success") {
-        _showSuccessSheet();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response["message"] ?? "Withdraw failed")),
-        );
-      }
+      
+      if (response["message"] == "Withdraw successful") {
+  _showSuccessSheet();
+} else {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(response["message"] ?? "Withdraw failed")),
+  );
+}
     } catch (e) {
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Network error")),
-      );
+       setState(() => _loading = false);
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(e.toString())),
+  );
+      
     }
   }
 

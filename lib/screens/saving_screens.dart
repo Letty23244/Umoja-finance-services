@@ -19,7 +19,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
   static const Color darkGreen = Color(0xFF4CAF50);
   static const Color bgColor = Color(0xFFF5F5F0);
 
-  final String baseUrl = "http://127.0.0.1:8000/api";
+  final String baseUrl = "https://umoja-financial-services-backend.onrender.com/api";
 
   bool isLoading = true;
   String? error;
@@ -37,12 +37,10 @@ class _SavingsScreenState extends State<SavingsScreen> {
     fetchWalletData();
   }
 
-  // ── SAFE PARSER ─────────────────────────────────────────────
   double parseAmount(dynamic amount) {
     return double.tryParse(amount.toString().replaceAll(',', '')) ?? 0.0;
   }
 
-  // ── FETCH DATA ──────────────────────────────────────────────
   Future<void> fetchWalletData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -54,11 +52,10 @@ class _SavingsScreenState extends State<SavingsScreen> {
           "Authorization": "Bearer $token",
           "Accept": "application/json",
         },
-      );
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
         final list = (data is List) ? data : (data["data"] ?? []);
 
         double dep = 0;
@@ -79,6 +76,15 @@ class _SavingsScreenState extends State<SavingsScreen> {
           balance = dep - wit;
           isLoading = false;
         });
+      } else if (response.statusCode == 404) {
+        // No wallet yet — show empty state
+        setState(() {
+          transactions = [];
+          totalDeposit = 0;
+          totalWithdraw = 0;
+          balance = 0;
+          isLoading = false;
+        });
       } else {
         setState(() {
           error = "Failed to load wallet data";
@@ -93,7 +99,6 @@ class _SavingsScreenState extends State<SavingsScreen> {
     }
   }
 
-  // ── DEPOSIT ─────────────────────────────────────────────────
   Future<void> deposit(double amount, String desc) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("token");
@@ -109,12 +114,11 @@ class _SavingsScreenState extends State<SavingsScreen> {
         "amount": amount,
         "description": desc,
       }),
-    );
+    ).timeout(const Duration(seconds: 60));
 
     fetchWalletData();
   }
 
-  // ── WITHDRAW ────────────────────────────────────────────────
   Future<void> withdraw(double amount, String desc) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("token");
@@ -130,7 +134,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
         "amount": amount,
         "description": desc,
       }),
-    );
+    ).timeout(const Duration(seconds: 60));
 
     fetchWalletData();
   }
@@ -145,28 +149,40 @@ class _SavingsScreenState extends State<SavingsScreen> {
         backgroundColor: primaryBrown,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-
           : error != null
-              ? Center(child: Text(error!))
-
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 12),
+                      Text(error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            isLoading = true;
+                            error = null;
+                          });
+                          fetchWalletData();
+                        },
+                        child: const Text("Retry"),
+                      ),
+                    ],
+                  ),
+                )
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-
-                      // ── BALANCE CARD ─────────────────────
                       BalanceCard(
                         walletName: walletName,
                         balance: balance.toStringAsFixed(0),
                         backgroundColor: primaryBrown,
                       ),
-
                       const SizedBox(height: 16),
-
-                      // ── STATS ────────────────────────────
                       Row(
                         children: [
                           Expanded(
@@ -178,10 +194,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 20),
-
-                      // ── ACTIONS ──────────────────────────
                       Row(
                         children: [
                           Expanded(
@@ -203,32 +216,35 @@ class _SavingsScreenState extends State<SavingsScreen> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 20),
-
-                      // ── TRANSACTIONS ─────────────────────
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: transactions.length,
-                        itemBuilder: (context, i) {
-                          final tx = transactions[i];
-
-                          return TransactionCard(
-                            type: tx["type"],
-                            description: tx["description"] ?? "",
-                            amount: tx["amount"].toString(),
-                            date: tx["created_at"] ?? "",
-                          );
-                        },
-                      ),
+                      transactions.isEmpty
+                          ? const Center(
+                              child: Text(
+                                "No transactions yet.\nMake a deposit to get started!",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: transactions.length,
+                              itemBuilder: (context, i) {
+                                final tx = transactions[i];
+                                return TransactionCard(
+                                  type: tx["type"],
+                                  description: tx["description"] ?? "",
+                                  amount: tx["amount"].toString(),
+                                  date: tx["created_at"] ?? "",
+                                );
+                              },
+                            ),
                     ],
                   ),
                 ),
     );
   }
 
-  // ── STAT CARD ───────────────────────────────────────────────
   Widget _stat(String title, double value, Color color) {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -249,7 +265,6 @@ class _SavingsScreenState extends State<SavingsScreen> {
     );
   }
 
-  // ── BOTTOM SHEET ────────────────────────────────────────────
   void showSheet(String type) {
     final amountController = TextEditingController();
     final descController = TextEditingController();
@@ -278,14 +293,11 @@ class _SavingsScreenState extends State<SavingsScreen> {
                 decoration: const InputDecoration(labelText: "Description"),
               ),
               const SizedBox(height: 20),
-
               ElevatedButton(
                 onPressed: () {
                   final amount = double.parse(amountController.text);
                   final desc = descController.text;
-
                   Navigator.pop(context);
-
                   if (type == "deposit") {
                     deposit(amount, desc);
                   } else {
@@ -294,6 +306,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
                 },
                 child: Text(type == "deposit" ? "Deposit" : "Withdraw"),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         );
