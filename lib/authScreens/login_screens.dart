@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_application_1/screens/main_navigation.dart';
-import 'package:flutter_application_1/authScreens/auth_provider_screen.dart';
+import 'package:umoja_finance_services/screens/main_navigation.dart';
+import 'package:umoja_finance_services/authScreens/auth_provider_screen.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screens.dart';
 import 'verfication_screens.dart';
@@ -27,8 +27,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // ─── Submit ──────────────────────────────────────────────────────────────────
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -42,21 +40,19 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      // ← Navigate based on role if needed
-      // final role = auth.userRole;
-      // if (role == 'admin') Navigator.pushReplacementNamed(context, '/admin');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainNavigation()),
       );
     } else if (auth.isUnverified) {
-      // ← Email not verified — go to verification screen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => VerificationScreen(email: emailController.text.trim())),
+        MaterialPageRoute(
+          builder: (_) =>
+              VerificationScreen(email: emailController.text.trim()),
+        ),
       );
     }
-    // else: error is shown in the error banner below automatically
   }
 
   @override
@@ -225,50 +221,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 20),
-                const Text(
-                  "Or login with",
-                  style: TextStyle(color: Colors.brown, fontSize: 14),
-                ),
-                const SizedBox(height: 15),
-
-                // ─── Social Login (UI only — wire up separately) ───────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    InkWell(
-                      onTap: () {},
-                      borderRadius: BorderRadius.circular(50),
-                      child: CircleAvatar(
-                        radius: 25,
-                        backgroundColor: Colors.white,
-                        child: Image.asset('images/google.png', height: 28),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    InkWell(
-                      onTap: () {},
-                      borderRadius: BorderRadius.circular(50),
-                      child: CircleAvatar(
-                        radius: 25,
-                        backgroundColor: Colors.white,
-                        child:
-                            Image.asset('images/facebook.jpg', height: 28),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    InkWell(
-                      onTap: () {},
-                      borderRadius: BorderRadius.circular(50),
-                      child: CircleAvatar(
-                        radius: 25,
-                        backgroundColor: Colors.white,
-                        child:
-                            Image.asset('images/Apple-Logo.jpg', height: 28),
-                      ),
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 30),
 
                 // ─── Signup Link ───────────────────────────────────────────────

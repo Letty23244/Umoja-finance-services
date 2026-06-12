@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screens/profile_screen.dart';
-import 'home_screen.dart';
-import 'saving_screens.dart';
-import 'StatementScreen.dart';
-import 'package:flutter_application_1/savings/auto_savings_screens.dart';
-import 'package:flutter_application_1/savings/locked_savings_screen.dart';
-import 'package:flutter_application_1/savings/savings_goal_screen.dart';
+import 'package:umoja_finance_services/screens/profile_screen.dart';
+import 'package:umoja_finance_services/screens/home_screen.dart';
+import 'package:umoja_finance_services/screens/saving_screens.dart';
+import 'package:umoja_finance_services/screens/StatementScreen.dart';
+import 'package:umoja_finance_services/savings/auto_savings_screens.dart';
+import 'package:umoja_finance_services/savings/locked_savings_screen.dart';
+import 'package:umoja_finance_services/savings/savings_goal_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -40,26 +40,17 @@ class _MainNavigationState extends State<MainNavigation> {
           });
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet),
             label: 'Savings',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.flag),
-            label: 'Goals',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.flag), label: 'Goals'),
           BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long),
             label: 'Statements',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
 
@@ -71,7 +62,9 @@ class _MainNavigationState extends State<MainNavigation> {
                 showModalBottomSheet(
                   context: context,
                   shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
                   ),
                   builder: (context) => Padding(
                     padding: const EdgeInsets.all(20),
@@ -81,7 +74,10 @@ class _MainNavigationState extends State<MainNavigation> {
                       children: [
                         const Text(
                           'More Savings Options',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         ListTile(
@@ -90,14 +86,20 @@ class _MainNavigationState extends State<MainNavigation> {
                             child: Icon(Icons.lock, color: Colors.white),
                           ),
                           title: const Text('Locked Savings'),
-                          subtitle: const Text('Lock savings for 1-5 years & earn interest'),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                          subtitle: const Text(
+                            'Lock savings for 1-5 years & earn interest',
+                          ),
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios,
+                            size: 16,
+                          ),
                           onTap: () {
                             Navigator.pop(context);
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const LockedSavingsScreen(),
+                                builder: (context) =>
+                                    const LockedSavingsScreen(),
                               ),
                             );
                           },
@@ -109,14 +111,19 @@ class _MainNavigationState extends State<MainNavigation> {
                             child: Icon(Icons.autorenew, color: Colors.white),
                           ),
                           title: const Text('Auto Savings'),
-                          subtitle: const Text('Set up automatic savings plans'),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                          subtitle: const Text(
+                            'Set up automatic savings plans',
+                          ),
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios,
+                            size: 16,
+                          ),
                           onTap: () {
                             Navigator.pop(context);
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const AutoSavingsScreen(),
+                                builder: (context) => AutoSavingsScreen(),
                               ),
                             );
                           },

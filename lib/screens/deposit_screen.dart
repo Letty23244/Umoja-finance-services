@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart'; // 💡 Run `flutter pub add intl` for currency parsing formatting
 import '../authScreens/auth_services_screen.dart';
 
 class DepositScreen extends StatefulWidget {
@@ -25,6 +29,10 @@ class _DepositScreenState extends State<DepositScreen>
   final _descController   = TextEditingController();
   String? _selectedMethod;
   bool _isLoading = false;
+  
+  // 🚀 New dynamic tracking variable for balance management
+  double _currentBalance = 0.0; 
+
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -32,6 +40,7 @@ class _DepositScreenState extends State<DepositScreen>
   @override
   void initState() {
     super.initState();
+    _fetchUserBalance(); // 👈 Load the initial wallet data on startup
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -50,6 +59,35 @@ class _DepositScreenState extends State<DepositScreen>
     super.dispose();
   }
 
+  // 🚀 Fetch initial balance profile data
+  Future<void> _fetchUserBalance() async {
+    try {
+      final token = await AuthService().getToken();
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse("${AuthService().baseUrl}/me"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Accept": "application/json",
+        },
+      ).timeout(const Duration(seconds: 60));
+
+      if (response.statusCode != 200) return;
+
+      final data = jsonDecode(response.body);
+      final balanceValue = data["user"]?['balance'] ?? data['balance'];
+
+      if (balanceValue != null) {
+        setState(() {
+          _currentBalance = double.tryParse(balanceValue.toString()) ?? 0.0;
+        });
+      }
+    } catch (_) {
+      // Fallback defaults silently if endpoint configuration differs
+    }
+  }
+
   // ── Deposit Logic ──────────────────────────────────────────
   Future<void> _deposit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -59,19 +97,32 @@ class _DepositScreenState extends State<DepositScreen>
     }
 
     setState(() => _isLoading = true);
+    
+    // 💡 Fix: Store original input parameters *before* structural clearing blocks trigger
+    final String confirmedAmount = _amountController.text;
+    final String confirmedMethod = _selectedMethod!;
 
     try {
       final response = await AuthService().deposit(
-        amount: _amountController.text,
-        method: _selectedMethod!,
+        amount: confirmedAmount,
+        method: confirmedMethod,
         description: _descController.text,
       );
 
       setState(() => _isLoading = false);
 
-      if (response["status"] == "success" ||
-          response["message"] != null) {
-        _showSuccessSheet();
+      if (response["status"] == "success") {
+        
+        // 🚀 Read directly from modified backend json wrapper structure
+        if (response["user"] != null && response["user"]["balance"] != null) {
+          setState(() {
+            _currentBalance = double.tryParse(response["user"]["balance"].toString()) ?? _currentBalance;
+          });
+        }
+
+        // Pass exact historical references explicitly down to the context dialog
+        _showSuccessSheet(confirmedAmount, confirmedMethod);
+        
         _amountController.clear();
         _descController.clear();
         setState(() => _selectedMethod = null);
@@ -102,7 +153,6 @@ class _DepositScreenState extends State<DepositScreen>
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
-          // ── Sliver App Bar ─────────────────────────────────
           SliverAppBar(
             expandedHeight: 240,
             pinned: true,
@@ -113,8 +163,6 @@ class _DepositScreenState extends State<DepositScreen>
               background: _buildAppBarBackground(),
             ),
           ),
-
-          // ── Body ───────────────────────────────────────────
           SliverToBoxAdapter(
             child: FadeTransition(
               opacity: _fadeAnim,
@@ -127,34 +175,22 @@ class _DepositScreenState extends State<DepositScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-
-                        // ── Balance Pill ─────────────────────
                         _buildBalancePill(),
                         const SizedBox(height: 28),
-
-                        // ── Amount Card ──────────────────────
                         _sectionLabel('Amount to Deposit', Icons.monetization_on_outlined),
                         const SizedBox(height: 10),
                         _buildAmountCard(),
                         const SizedBox(height: 28),
-
-                        // ── Method Selection ─────────────────
                         _sectionLabel('Deposit Method', Icons.swap_horiz_rounded),
                         const SizedBox(height: 14),
                         _buildMethodRow(),
                         const SizedBox(height: 28),
-
-                        // ── Description ──────────────────────
                         _sectionLabel('Note (Optional)', Icons.edit_note_rounded),
                         const SizedBox(height: 10),
                         _buildDescriptionCard(),
                         const SizedBox(height: 24),
-
-                        // ── Info Banner ──────────────────────
                         _buildInfoBanner(),
                         const SizedBox(height: 32),
-
-                        // ── Submit Button ─────────────────────
                         _buildSubmitButton(),
                         const SizedBox(height: 48),
                       ],
@@ -269,6 +305,9 @@ class _DepositScreenState extends State<DepositScreen>
 
   // ── Balance Pill ───────────────────────────────────────────
   Widget _buildBalancePill() {
+    // 🚀 Dynamic formatter logic cleanly converting structural floats to UGX presentation format
+    final currencyFormatter = NumberFormat.currency(locale: 'en_US', symbol: 'UGX ', decimalDigits: 0);
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
@@ -299,9 +338,9 @@ class _DepositScreenState extends State<DepositScreen>
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'UGX 1,250,000',
-                style: TextStyle(
+              Text(
+                currencyFormatter.format(_currentBalance), // 👈 Dynamic reactive assignment!
+                style: const TextStyle(
                   color: Colors.white, fontSize: 20,
                   fontWeight: FontWeight.w800, letterSpacing: -0.3,
                 ),
@@ -387,7 +426,11 @@ class _DepositScreenState extends State<DepositScreen>
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             ),
-            validator: (v) => v == null || v.isEmpty ? 'Enter amount' : null,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Enter amount';
+              if (double.tryParse(v) == null) return 'Enter a valid numeric amount';
+              return null;
+            },
           ),
           Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
@@ -426,7 +469,7 @@ class _DepositScreenState extends State<DepositScreen>
   Widget _buildMethodRow() {
     return Row(
       children: [
-        _methodTile('Mobile\nMoney',  Icons.phone_android_rounded,   'Mobile'),
+        _methodTile('Mobile\nMoney',   Icons.phone_android_rounded,   'Mobile'),
         const SizedBox(width: 12),
         _methodTile('Bank\nTransfer', Icons.account_balance_rounded, 'Bank'),
         const SizedBox(width: 12),
@@ -614,7 +657,7 @@ class _DepositScreenState extends State<DepositScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
-                : LinearGradient(colors: [cardWhite, cardWhite]),
+                : const LinearGradient(colors: [cardWhite, cardWhite]),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSelected ? Colors.transparent : Colors.grey.shade200,
@@ -659,7 +702,7 @@ class _DepositScreenState extends State<DepositScreen>
                   width: 18, height: 3,
                   decoration: BoxDecoration(
                     color: lightGreen,
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(22),
                   ),
                 ),
               ],
@@ -671,7 +714,12 @@ class _DepositScreenState extends State<DepositScreen>
   }
 
   // ── Success Sheet ──────────────────────────────────────────
-  void _showSuccessSheet() {
+  // 💡 Fix: Accepting exact contextual tracking fields explicitly to protect rendering parameters
+  void _showSuccessSheet(String amount, String method) {
+    // Attempt parsing clean visual numbers safely
+    final parsedAmt = double.tryParse(amount) ?? 0.0;
+    final displayAmount = NumberFormat.decimalPattern('en_US').format(parsedAmt);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -689,7 +737,7 @@ class _DepositScreenState extends State<DepositScreen>
               width: 40, height: 4,
               decoration: BoxDecoration(
                 color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(22),
               ),
             ),
             const SizedBox(height: 32),
@@ -727,7 +775,7 @@ class _DepositScreenState extends State<DepositScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'UGX ${_amountController.text} via $_selectedMethod\nhas been added to your account.',
+              'UGX $displayAmount via $method\nhas been added to your account.',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: mutedText, height: 1.7),
             ),

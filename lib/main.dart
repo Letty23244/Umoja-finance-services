@@ -7,12 +7,14 @@ import 'screens/saving_screens.dart';
 import 'screens/splash_screen.dart';
 import 'authScreens/login_screens.dart';
 import '../authScreens/auth_provider_screen.dart'; // ← add this
+import '../providers/account_provider.dart'; // ← add this
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => AccountProvider()),
       ],
       child: const MyApp(),
     ),

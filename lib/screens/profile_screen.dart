@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screens/transaction_history_screen.dart';
-import 'package:flutter_application_1/screens/change_password_screen.dart';
-import 'package:flutter_application_1/screens/notification_screen.dart';
-import 'package:flutter_application_1/screens/help_support_screen.dart';
+import 'package:umoja_finance_services/screens/transaction_history_screen.dart';
+import 'package:umoja_finance_services/screens/change_password_screen.dart';
+import 'package:umoja_finance_services/screens/notification_screen.dart';
+import 'package:umoja_finance_services/screens/help_support_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});

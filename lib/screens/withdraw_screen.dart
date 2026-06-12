@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import '../authScreens/auth_services_screen.dart';
 
 class WithdrawScreen extends StatefulWidget {
-  const WithdrawScreen({super.key});
+  // 1. Accept initial balance dynamically from your Home/Dashboard Screen state
+  final double initialBalance;
+
+  const WithdrawScreen({super.key, required this.initialBalance});
 
   @override
   State<WithdrawScreen> createState() => _WithdrawScreenState();
@@ -25,6 +28,10 @@ class _WithdrawScreenState extends State<WithdrawScreen>
   final _descController   = TextEditingController();
   String? _selectedMethod;
   bool _loading = false;
+  
+  // 2. State tracker variable for internal dynamic updates
+  late double _currentBalance;
+
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -32,6 +39,9 @@ class _WithdrawScreenState extends State<WithdrawScreen>
   @override
   void initState() {
     super.initState();
+    // Initialize live balance with value passed from navigation context parameters
+    _currentBalance = widget.initialBalance;
+
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -50,6 +60,14 @@ class _WithdrawScreenState extends State<WithdrawScreen>
     super.dispose();
   }
 
+  // Helper formatting for dynamic thousands commas (e.g. 1,250,000)
+  String _formatCurrency(double amount) {
+    return amount.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), 
+      (Match m) => '${m[1]},'
+    );
+  }
+
   // ── API ────────────────────────────────────────────────────
   Future<void> _submitWithdraw() async {
     if (!_formKey.currentState!.validate()) return;
@@ -59,101 +77,135 @@ class _WithdrawScreenState extends State<WithdrawScreen>
       );
       return;
     }
+
+    // Client-side quick check before running expensive network pipeline requests
+    final double? enteredAmount = double.tryParse(_amountController.text.trim());
+    if (enteredAmount == null || enteredAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter a valid numeric amount")),
+      );
+      return;
+    }
+
+    if (enteredAmount > _currentBalance) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Insufficient account balance")),
+      );
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final response = await AuthService().withdraw(
-        amount: _amountController.text,
+        amount: _amountController.text.trim(),
         method: _selectedMethod!,
-        description: _descController.text,
+        description: _descController.text.trim(),
       );
+      
       setState(() => _loading = false);
       
-      if (response["message"] == "Withdraw successful") {
-  _showSuccessSheet();
-} else {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(response["message"] ?? "Withdraw failed")),
-  );
-}
+      if (response["status"] == "success" || response["message"] == "Withdraw successful") {
+        // 3. Extract the new live balance returned from your Laravel controller update
+        if (response["new_balance"] != null) {
+          setState(() {
+            _currentBalance = double.parse(response["new_balance"].toString());
+          });
+        }
+        
+        _showSuccessSheet();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response["message"] ?? "Withdraw failed")),
+        );
+      }
     } catch (e) {
-       setState(() => _loading = false);
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(e.toString())),
-  );
-      
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
     }
   }
 
   // ── Build ──────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: CustomScrollView(
-        slivers: [
-          // ── Sliver App Bar ─────────────────────────────────
-          SliverAppBar(
-            expandedHeight: 240,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: darkBrown,
-            foregroundColor: Colors.white,
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildAppBarBackground(),
+    return WillPopScope(
+      onWillPop: () async {
+        // Return latest data mutation map parameters back upwards if native back arrow used
+        Navigator.pop(context, _currentBalance);
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: bgColor,
+        body: CustomScrollView(
+          slivers: [
+            // ── Sliver App Bar ─────────────────────────────────
+            SliverAppBar(
+              expandedHeight: 240,
+              pinned: true,
+              elevation: 0,
+              backgroundColor: darkBrown,
+              foregroundColor: Colors.white,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context, _currentBalance),
+              ),
+              flexibleSpace: FlexibleSpaceBar(
+                background: _buildAppBarBackground(),
+              ),
             ),
-          ),
 
-          // ── Body ───────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: SlideTransition(
-                position: _slideAnim,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+            // ── Body ───────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ── Balance Pill ─────────────────────
+                          _buildBalancePill(),
+                          const SizedBox(height: 28),
 
-                        // ── Balance Pill ─────────────────────
-                        _buildBalancePill(),
-                        const SizedBox(height: 28),
+                          // ── Amount Card ──────────────────────
+                          _sectionLabel('Amount to Withdraw', Icons.monetization_on_outlined),
+                          const SizedBox(height: 10),
+                          _buildAmountCard(),
+                          const SizedBox(height: 28),
 
-                        // ── Amount Card ──────────────────────
-                        _sectionLabel('Amount to Withdraw', Icons.monetization_on_outlined),
-                        const SizedBox(height: 10),
-                        _buildAmountCard(),
-                        const SizedBox(height: 28),
+                          // ── Method Selection ─────────────────
+                          _sectionLabel('Withdrawal Method', Icons.swap_horiz_rounded),
+                          const SizedBox(height: 14),
+                          _buildMethodRow(),
+                          const SizedBox(height: 28),
 
-                        // ── Method Selection ─────────────────
-                        _sectionLabel('Withdrawal Method', Icons.swap_horiz_rounded),
-                        const SizedBox(height: 14),
-                        _buildMethodRow(),
-                        const SizedBox(height: 28),
+                          // ── Description ──────────────────────
+                          _sectionLabel('Note (Optional)', Icons.edit_note_rounded),
+                          const SizedBox(height: 10),
+                          _buildDescriptionCard(),
+                          const SizedBox(height: 24),
 
-                        // ── Description ──────────────────────
-                        _sectionLabel('Note (Optional)', Icons.edit_note_rounded),
-                        const SizedBox(height: 10),
-                        _buildDescriptionCard(),
-                        const SizedBox(height: 24),
+                          // ── Info Banner ──────────────────────
+                          _buildInfoBanner(),
+                          const SizedBox(height: 32),
 
-                        // ── Info Banner ──────────────────────
-                        _buildInfoBanner(),
-                        const SizedBox(height: 32),
-
-                        // ── Submit Button ─────────────────────
-                        _buildSubmitButton(),
-                        const SizedBox(height: 48),
-                      ],
+                          // ── Submit Button ─────────────────────
+                          _buildSubmitButton(),
+                          const SizedBox(height: 48),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -170,7 +222,6 @@ class _WithdrawScreenState extends State<WithdrawScreen>
       ),
       child: Stack(
         children: [
-          // Large blurred circle top-right
           Positioned(
             top: -50,
             right: -40,
@@ -188,7 +239,6 @@ class _WithdrawScreenState extends State<WithdrawScreen>
               ),
             ),
           ),
-          // Small accent circle bottom-left
           Positioned(
             bottom: 20,
             left: -30,
@@ -201,7 +251,6 @@ class _WithdrawScreenState extends State<WithdrawScreen>
               ),
             ),
           ),
-          // Dotted pattern overlay (simulated with small circles)
           Positioned(
             top: 60,
             left: 20,
@@ -224,14 +273,12 @@ class _WithdrawScreenState extends State<WithdrawScreen>
               ),
             ),
           ),
-          // Content
           Padding(
             padding: const EdgeInsets.only(left: 24, right: 24, bottom: 28, top: 70),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Tag pill
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
@@ -310,9 +357,10 @@ class _WithdrawScreenState extends State<WithdrawScreen>
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'UGX 1,250,000',
-                style: TextStyle(
+              // 4. CHANGED: Now displays current active layout state dynamically with formatting rules
+              Text(
+                'UGX ${_formatCurrency(_currentBalance)}',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -356,7 +404,6 @@ class _WithdrawScreenState extends State<WithdrawScreen>
       ),
       child: Column(
         children: [
-          // Currency row
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 20, top: 18, bottom: 6),
             child: Row(
@@ -378,7 +425,7 @@ class _WithdrawScreenState extends State<WithdrawScreen>
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text(
+                const Text(
                   'Ugandan Shilling',
                   style: TextStyle(
                     fontSize: 11,
@@ -398,9 +445,7 @@ class _WithdrawScreenState extends State<WithdrawScreen>
               ],
             ),
           ),
-          // Divider
           Divider(height: 1, color: Colors.grey.shade100, indent: 20, endIndent: 20),
-          // Amount field
           TextFormField(
             controller: _amountController,
             keyboardType: TextInputType.number,
@@ -423,7 +468,6 @@ class _WithdrawScreenState extends State<WithdrawScreen>
             ),
             validator: (v) => v == null || v.isEmpty ? 'Enter amount' : null,
           ),
-          // Quick amounts
           Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
             child: Row(
@@ -459,20 +503,18 @@ class _WithdrawScreenState extends State<WithdrawScreen>
     );
   }
 
-  // ── Method Row ─────────────────────────────────────────────
   Widget _buildMethodRow() {
     return Row(
       children: [
         _methodTile('Mobile\nMoney',   Icons.phone_android_rounded,    'Mobile Money'),
         const SizedBox(width: 12),
-        _methodTile('Bank\nTransfer',  Icons.account_balance_rounded,  'Bank'),
+        _methodTile('Bank\nTransfer',  Icons.account_balance_rounded,  'Bank Transfer'),
         const SizedBox(width: 12),
-        _methodTile('Cash\nPickup',    Icons.storefront_outlined,      'Cash'),
+        _methodTile('Cash\nPickup',    Icons.storefront_outlined,      'Cash Pickup'),
       ],
     );
   }
 
-  // ── Description Card ───────────────────────────────────────
   Widget _buildDescriptionCard() {
     return Container(
       decoration: BoxDecoration(
@@ -506,7 +548,6 @@ class _WithdrawScreenState extends State<WithdrawScreen>
     );
   }
 
-  // ── Info Banner ────────────────────────────────────────────
   Widget _buildInfoBanner() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -558,7 +599,6 @@ class _WithdrawScreenState extends State<WithdrawScreen>
     );
   }
 
-  // ── Submit Button ──────────────────────────────────────────
   Widget _buildSubmitButton() {
     return Container(
       decoration: BoxDecoration(
@@ -626,7 +666,6 @@ class _WithdrawScreenState extends State<WithdrawScreen>
     );
   }
 
-  // ── Section Label ──────────────────────────────────────────
   Widget _sectionLabel(String text, IconData icon) {
     return Row(
       children: [
@@ -652,7 +691,6 @@ class _WithdrawScreenState extends State<WithdrawScreen>
     );
   }
 
-  // ── Method Tile ────────────────────────────────────────────
   Widget _methodTile(String label, IconData icon, String value) {
     final isSelected = _selectedMethod == value;
     return Expanded(
@@ -669,7 +707,7 @@ class _WithdrawScreenState extends State<WithdrawScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
-                : LinearGradient(colors: [cardWhite, cardWhite]),
+                : const LinearGradient(colors: [cardWhite, cardWhite]),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSelected ? Colors.transparent : Colors.grey.shade200,
@@ -782,15 +820,15 @@ class _WithdrawScreenState extends State<WithdrawScreen>
             const Text(
               'Withdrawal Submitted!',
               style: TextStyle(
+                color: darkBrown,
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
-                color: darkBrown,
                 letterSpacing: -0.3,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'UGX ${_amountController.text} via $_selectedMethod\nwill be processed within 24 hours.',
+              'UGX ${_formatCurrency(double.tryParse(_amountController.text.replaceAll(',', '')) ?? 0)} via $_selectedMethod\nwill be processed within 24 hours.',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: mutedText, height: 1.7),
             ),
@@ -821,7 +859,13 @@ class _WithdrawScreenState extends State<WithdrawScreen>
                   elevation: 0,
                 ),
                 onPressed: () {
+                  // Close popup sheet
                   Navigator.pop(context);
+                  
+                  // 5. Return updated balance back to Home screen instance context stack
+                  Navigator.pop(context, _currentBalance);
+                  
+                  // Clear forms smoothly
                   _amountController.clear();
                   _descController.clear();
                   setState(() => _selectedMethod = null);

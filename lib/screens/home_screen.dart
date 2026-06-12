@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screens/saving_screens.dart';
-import 'package:flutter_application_1/screens/StatementScreen.dart';
-import 'package:flutter_application_1/savings/locked_savings_screen.dart';
-import 'package:flutter_application_1/savings/auto_savings_screens.dart';
-import 'package:flutter_application_1/savings/savings_goal_screen.dart';
-import 'package:flutter_application_1/screens/deposit_screen.dart';
-import 'package:flutter_application_1/screens/withdraw_screen.dart'; 
+import 'package:provider/provider.dart';
+import '../providers/account_provider.dart';
+import 'package:umoja_finance_services/screens/saving_screens.dart';
+import 'package:umoja_finance_services/screens/StatementScreen.dart';
+import 'package:umoja_finance_services/savings/locked_savings_screen.dart';
+import 'package:umoja_finance_services/savings/auto_savings_screens.dart';
+import 'package:umoja_finance_services/savings/savings_goal_screen.dart';
+import 'package:umoja_finance_services/screens/deposit_screen.dart';
+import 'package:umoja_finance_services/screens/withdraw_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
 
   static const Color primary   = Color(0xFF6C63FF);
   static const Color secondary = Color(0xFFFF6584);
@@ -16,32 +24,50 @@ class HomeScreen extends StatelessWidget {
   static const Color orange    = Color(0xFFFF9F43);
   static const Color bgColor   = Color(0xFFF0F2FF);
 
-  static const String userName      = 'Leticia';
-  static const String totalSavings  = '2,450,000';
-  static const String walletBalance = '500,000';
-  static const String lockedAmount  = '1,200,000';
-  static const int    activeGoals   = 3;
+  static const String userName = 'Leticia';
 
-  static const List<Map<String, dynamic>> recentTransactions = [
-    {'title': 'Savings Deposit', 'amount': '+ UGX 500,000', 'isPositive': true,  'date': 'Today',     'icon': Icons.arrow_downward},
-    {'title': 'Auto Savings',    'amount': '- UGX 50,000',  'isPositive': false, 'date': 'Yesterday', 'icon': Icons.autorenew},
-    {'title': 'Locked Savings',  'amount': '- UGX 200,000', 'isPositive': false, 'date': '18 Mar',    'icon': Icons.lock},
-    {'title': 'Withdrawal',      'amount': '- UGX 100,000', 'isPositive': false, 'date': '17 Mar',    'icon': Icons.arrow_upward},
-  ];
+  // ── Dynamic greeting based on time ────────────────────────
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12)  return 'Good Morning';
+    if (hour >= 12 && hour < 17) return 'Good Afternoon';
+    if (hour >= 17 && hour < 21) return 'Good Evening';
+    return 'Good Night';
+  }
+
+  // ── Greeting emoji based on time ──────────────────────────
+  String get _greetingEmoji {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12)  return '☀️';
+    if (hour >= 12 && hour < 17) return '🌤️';
+    if (hour >= 17 && hour < 21) return '🌆';
+    return '🌙';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AccountProvider>().fetchAccountData();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final account = context.watch<AccountProvider>();
+
     return Scaffold(
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
-
-          // ── Pinned App Bar (Greeting only) ─────────────────
+          // ── Pinned App Bar ─────────────────────────────────
           SliverAppBar(
             pinned: true,
             floating: false,
             expandedHeight: 70,
-            backgroundColor:Colors.brown,
+            backgroundColor: Colors.brown,
             elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
@@ -54,11 +80,13 @@ class HomeScreen extends StatelessWidget {
                 ),
                 child: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Avatar + greeting
                         Row(
                           children: [
                             const CircleAvatar(
@@ -77,12 +105,16 @@ class HomeScreen extends StatelessWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
+                              children: [
+                                // ── CHANGED: dynamic greeting + emoji ──
                                 Text(
-                                  'Good Morning 👋',
-                                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                                  '$_greeting $_greetingEmoji',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
                                 ),
-                                Text(
+                                const Text(
                                   userName,
                                   style: TextStyle(
                                     color: Colors.white,
@@ -94,15 +126,17 @@ class HomeScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-
-                        // Notification bell
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: Colors.white24,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+                          child: const Icon(
+                            Icons.notifications_outlined,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ],
                     ),
@@ -116,8 +150,7 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                // ── Total Savings Card (separate layout) ──────
+                // ── Total Savings Card ─────────────────────────
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.all(16),
@@ -139,13 +172,10 @@ class HomeScreen extends StatelessWidget {
                   ),
                   child: Stack(
                     children: [
-                      // Decorative circle
                       Positioned(
-                        right: -20,
-                        top: -20,
+                        right: -20, top: -20,
                         child: Container(
-                          width: 100,
-                          height: 100,
+                          width: 100, height: 100,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white.withOpacity(0.1),
@@ -153,19 +183,15 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       Positioned(
-                        right: 20,
-                        bottom: -30,
+                        right: 20, bottom: -30,
                         child: Container(
-                          width: 80,
-                          height: 80,
+                          width: 80, height: 80,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white.withOpacity(0.07),
                           ),
                         ),
                       ),
-
-                      // Content
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -177,53 +203,67 @@ class HomeScreen extends StatelessWidget {
                                 style: TextStyle(color: Colors.white70, fontSize: 14),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.white24,
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: const Row(
                                   children: [
-                                    Icon(Icons.trending_up, color: Colors.greenAccent, size: 14),
+                                    Icon(Icons.trending_up,
+                                        color: Colors.greenAccent, size: 14),
                                     SizedBox(width: 4),
-                                    Text(
-                                      '+12.5%',
-                                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                    ),
+                                    Text('+12.5%',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'UGX $totalSavings',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
+                          account.isLoading
+                              ? const SizedBox(
+                                  height: 38,
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 20, height: 20,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white54, strokeWidth: 2),
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  'UGX ${account.formattedTotal}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
                           const SizedBox(height: 4),
-                          const Text(
-                            'As of Today',
-                            style: TextStyle(color: Colors.white60, fontSize: 12),
-                          ),
+                          const Text('As of Today',
+                              style: TextStyle(color: Colors.white60, fontSize: 12)),
                           const SizedBox(height: 20),
-
-                          // Mini stats inside card
                           Row(
                             children: [
-                              _miniStat('Wallet', 'UGX $walletBalance', Icons.account_balance_wallet),
+                              _miniStat('Wallet',
+                                  'UGX ${account.formattedWallet}',
+                                  Icons.account_balance_wallet),
                               const SizedBox(width: 8),
                               Container(width: 1, height: 30, color: Colors.white24),
                               const SizedBox(width: 8),
-                              _miniStat('Locked', 'UGX $lockedAmount', Icons.lock),
+                              _miniStat('Locked',
+                                  'UGX ${account.formattedLocked}',
+                                  Icons.lock),
                               const SizedBox(width: 8),
                               Container(width: 1, height: 30, color: Colors.white24),
                               const SizedBox(width: 8),
-                              _miniStat('Goals', '$activeGoals Active', Icons.flag),
+                              _miniStat('Goals', '3 Active', Icons.flag),
                             ],
                           ),
                         ],
@@ -235,10 +275,11 @@ class HomeScreen extends StatelessWidget {
                 // ── Quick Actions ──────────────────────────────
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Quick Actions',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D2D2D)),
-                  ),
+                  child: Text('Quick Actions',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2D2D2D))),
                 ),
                 const SizedBox(height: 12),
 
@@ -253,8 +294,19 @@ class HomeScreen extends StatelessWidget {
                               context,
                               icon: Icons.add_rounded,
                               label: 'Deposit',
-                              gradient: const LinearGradient(colors: [Color(0xFF43E97B), Color(0xFF38F9D7)]),
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DepositScreen())),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF43E97B), Color(0xFF38F9D7)],
+                              ),
+                              onTap: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const DepositScreen()),
+                                );
+                                if (mounted) {
+                                  context.read<AccountProvider>().fetchAccountData();
+                                }
+                              },
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -263,8 +315,22 @@ class HomeScreen extends StatelessWidget {
                               context,
                               icon: Icons.remove_rounded,
                               label: 'Withdraw',
-                              gradient: const LinearGradient(colors: [Color(0xFFFF6584), Color(0xFFFF8E53)]),
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WithdrawScreen())),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFFF6584), Color(0xFFFF8E53)],
+                              ),
+                              onTap: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => WithdrawScreen(
+                                      initialBalance: account.walletBalance,
+                                    ),
+                                  ),
+                                );
+                                if (mounted) {
+                                  context.read<AccountProvider>().fetchAccountData();
+                                }
+                              },
                             ),
                           ),
                         ],
@@ -277,8 +343,14 @@ class HomeScreen extends StatelessWidget {
                               context,
                               icon: Icons.lock_rounded,
                               label: 'Lock Savings',
-                              gradient: const LinearGradient(colors: [Color(0xFFFF9F43), Color(0xFFFFD700)]),
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LockedSavingsScreen())),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFFF9F43), Color(0xFFFFD700)],
+                              ),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const LockedSavingsScreen()),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -287,8 +359,14 @@ class HomeScreen extends StatelessWidget {
                               context,
                               icon: Icons.autorenew_rounded,
                               label: 'Auto Savings',
-                              gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFF48C6EF)]),
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AutoSavingsScreen())),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6C63FF), Color(0xFF48C6EF)],
+                              ),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const AutoSavingsScreen()),
+                              ),
                             ),
                           ),
                         ],
@@ -304,19 +382,29 @@ class HomeScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Savings Goals',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D2D2D)),
-                      ),
+                      const Text('Savings Goals',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D2D2D))),
                       GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SavingsGoalScreen())),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const SavingsGoalScreen()),
+                        ),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Text('View All', style: TextStyle(color: primary, fontWeight: FontWeight.w600, fontSize: 12)),
+                          child: const Text('View All',
+                              style: TextStyle(
+                                  color: primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12)),
                         ),
                       ),
                     ],
@@ -328,11 +416,14 @@ class HomeScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     children: [
-                      _goalCard('Buy Equipment', 0.40, 'UGX 800K / 2M', const Color(0xFF6C63FF)),
+                      _goalCard('Buy Equipment', 0.40,
+                          'UGX 800K / 2M', const Color(0xFF6C63FF)),
                       const SizedBox(height: 10),
-                      _goalCard('Emergency Fund', 0.25, 'UGX 250K / 1M', const Color(0xFFFF6584)),
+                      _goalCard('Emergency Fund', 0.25,
+                          'UGX 250K / 1M', const Color(0xFFFF6584)),
                       const SizedBox(height: 10),
-                      _goalCard('Expand Stock', 1.0, 'UGX 500K / 500K ✓', const Color(0xFF43E97B)),
+                      _goalCard('Expand Stock', 1.0,
+                          'UGX 500K / 500K ✓', const Color(0xFF43E97B)),
                     ],
                   ),
                 ),
@@ -344,19 +435,29 @@ class HomeScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Recent Transactions',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D2D2D)),
-                      ),
+                      const Text('Recent Transactions',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D2D2D))),
                       GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatementScreen())),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const StatementScreen()),
+                        ),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Text('View All', style: TextStyle(color: primary, fontWeight: FontWeight.w600, fontSize: 12)),
+                          child: const Text('View All',
+                              style: TextStyle(
+                                  color: primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12)),
                         ),
                       ),
                     ],
@@ -370,21 +471,53 @@ class HomeScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 10, offset: const Offset(0, 4))],
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.grey.shade200,
+                            blurRadius: 10,
+                            offset: const Offset(0, 4)),
+                      ],
                     ),
-                    child: Column(
-                      children: recentTransactions.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final tx = entry.value;
-                        return Column(
-                          children: [
-                            _transactionTile(tx['title'], tx['amount'], tx['isPositive'], tx['date'], tx['icon']),
-                            if (index < recentTransactions.length - 1)
-                              Divider(height: 1, indent: 70, endIndent: 16, color: Colors.grey.shade100),
-                          ],
-                        );
-                      }).toList(),
-                    ),
+                    child: account.isLoading
+                        ? const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        : account.transactions.isEmpty
+                            ? const Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Center(
+                                  child: Text('No transactions yet',
+                                      style: TextStyle(color: Colors.grey)),
+                                ),
+                              )
+                            : Column(
+                                children: account.transactions
+                                    .asMap()
+                                    .entries
+                                    .map((entry) {
+                                  final index = entry.key;
+                                  final tx = entry.value;
+                                  return Column(
+                                    children: [
+                                      _transactionTile(
+                                        tx.title,
+                                        tx.formattedAmount,
+                                        tx.isPositive,
+                                        tx.date,
+                                        tx.icon,
+                                      ),
+                                      if (index < account.transactions.length - 1)
+                                        Divider(
+                                          height: 1,
+                                          indent: 70,
+                                          endIndent: 16,
+                                          color: Colors.grey.shade100,
+                                        ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
                   ),
                 ),
                 const SizedBox(height: 30),
@@ -396,7 +529,8 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ── Mini Stat (inside balance card) ───────────────────────
+  // ── Widgets (unchanged) ────────────────────────────────────
+
   Widget _miniStat(String label, String value, IconData icon) {
     return Expanded(
       child: Column(
@@ -406,23 +540,25 @@ class HomeScreen extends StatelessWidget {
             children: [
               Icon(icon, color: Colors.white60, size: 12),
               const SizedBox(width: 4),
-              Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+              Text(label,
+                  style: const TextStyle(color: Colors.white60, fontSize: 11)),
             ],
           ),
           const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          Text(value,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
         ],
       ),
     );
   }
 
-  // ── Action Card ────────────────────────────────────────────
-  Widget _actionCard(BuildContext context, {
+  Widget _actionCard(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required Gradient gradient,
@@ -435,28 +571,39 @@ class HomeScreen extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.grey.shade300, blurRadius: 8, offset: const Offset(0, 4))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.grey.shade300,
+                blurRadius: 8,
+                offset: const Offset(0, 4)),
+          ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: Colors.white, size: 22),
             const SizedBox(width: 8),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+            Text(label,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold)),
           ],
         ),
       ),
     );
   }
 
-  // ── Goal Card ──────────────────────────────────────────────
-  Widget _goalCard(String name, double progress, String amounts, Color color) {
+  Widget _goalCard(
+      String name, double progress, String amounts, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 6)],
+        boxShadow: [
+          BoxShadow(color: Colors.grey.shade200, blurRadius: 6)
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,14 +615,23 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: Icon(Icons.flag_rounded, color: color, size: 16),
                   ),
                   const SizedBox(width: 10),
-                  Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  Text(name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 14)),
                 ],
               ),
-              Text('${(progress * 100).toInt()}%', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+              Text('${(progress * 100).toInt()}%',
+                  style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14)),
             ],
           ),
           const SizedBox(height: 10),
@@ -489,16 +645,23 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(amounts, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+          Text(amounts,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
         ],
       ),
     );
   }
 
-  // ── Transaction Tile ───────────────────────────────────────
-  Widget _transactionTile(String title, String amount, bool isPositive, String date, IconData icon) {
+  Widget _transactionTile(
+    String title,
+    String amount,
+    bool isPositive,
+    String date,
+    IconData icon,
+  ) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       leading: Container(
         width: 44,
         height: 44,
@@ -512,14 +675,19 @@ class HomeScreen extends StatelessWidget {
         ),
         child: Icon(icon, color: Colors.white, size: 20),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-      subtitle: Text(date, style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+      title: Text(title,
+          style: const TextStyle(
+              fontWeight: FontWeight.w600, fontSize: 14)),
+      subtitle: Text(date,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
       trailing: Text(
         amount,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 13,
-          color: isPositive ? const Color(0xFF43E97B) : const Color(0xFFFF6584),
+          color: isPositive
+              ? const Color(0xFF43E97B)
+              : const Color(0xFFFF6584),
         ),
       ),
     );

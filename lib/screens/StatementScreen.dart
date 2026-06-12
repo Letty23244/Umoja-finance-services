@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:flutter_application_1/widget/transaction_card.dart';
+import 'package:umoja_finance_services/widget/transaction_card.dart';
 
 class StatementScreen extends StatefulWidget {
   const StatementScreen({super.key});

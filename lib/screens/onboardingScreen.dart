@@ -1,6 +1,6 @@
 // ignore: file_names
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/authScreens/login_screens.dart';
+import 'package:umoja_finance_services/authScreens/login_screens.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
