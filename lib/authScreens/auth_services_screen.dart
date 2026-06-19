@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -6,7 +7,6 @@ import '../models/auth/user_model.dart';
 import '../models/auth/auth_result.dart';
 
 class AuthService {
-  /// Backend Base URL
   final String baseUrl =
       "https://umoja-financial-services-backend.onrender.com/api";
 
@@ -14,7 +14,6 @@ class AuthService {
   //  HELPERS
   // ─────────────────────────────────────────────
 
-  /// Returns auth headers with Bearer token
   Future<Map<String, String>> _authHeaders() async {
     final token = await getToken();
     return {
@@ -24,17 +23,15 @@ class AuthService {
     };
   }
 
-  /// Returns plain JSON headers (no auth)
   Map<String, String> get _jsonHeaders => {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-      };
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+  };
 
   // ─────────────────────────────────────────────
   //  AUTH
   // ─────────────────────────────────────────────
 
-  /// LOGIN
   Future<AuthResult> login({
     required String email,
     required String password,
@@ -46,16 +43,17 @@ class AuthService {
             headers: _jsonHeaders,
             body: jsonEncode({"email": email, "password": password}),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
+
+      print('LOGIN status: ${response.statusCode}');
+      print('LOGIN body:   ${response.body}');
 
       final data = jsonDecode(response.body);
 
-      // Email not verified
       if (response.statusCode == 403 && data["action"] == "verify_email") {
         return AuthResult.unverified(data["message"]);
       }
 
-      // Success
       if (response.statusCode == 200) {
         final token = data["token"];
         final prefs = await SharedPreferences.getInstance();
@@ -69,11 +67,11 @@ class AuthService {
 
       return AuthResult.failure(data["message"] ?? "Login failed");
     } catch (e) {
+      print('LOGIN error: $e');
       return AuthResult.failure(e.toString());
     }
   }
 
-  /// REGISTER
   Future<AuthResult> signUp({
     required String name,
     required String email,
@@ -82,19 +80,26 @@ class AuthService {
     required String passwordConfirmation,
   }) async {
     try {
+      final body = {
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "password": password,
+        "password_confirmation": passwordConfirmation,
+      };
+
+      print('REGISTER sending: ${jsonEncode(body)}');
+
       final response = await http
           .post(
             Uri.parse("$baseUrl/register"),
             headers: _jsonHeaders,
-            body: jsonEncode({
-              "name": name,
-              "email": email,
-              "phone": phone,
-              "password": password,
-              "password_confirmation": passwordConfirmation,
-            }),
+            body: jsonEncode(body),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
+
+      print('REGISTER status: ${response.statusCode}');
+      print('REGISTER body:   ${response.body}');
 
       final data = jsonDecode(response.body);
 
@@ -109,13 +114,21 @@ class AuthService {
         );
       }
 
+      if (data["errors"] != null) {
+        final errors = data["errors"] as Map<String, dynamic>;
+        final firstError = errors.values.first;
+        if (firstError is List && firstError.isNotEmpty) {
+          return AuthResult.failure(firstError.first.toString());
+        }
+      }
+
       return AuthResult.failure(data["message"] ?? "Registration failed");
     } catch (e) {
+      print('REGISTER error: $e');
       return AuthResult.failure(e.toString());
     }
   }
 
-  /// FORGOT PASSWORD
   Future<AuthResult> forgotPassword(String email) async {
     try {
       final response = await http
@@ -124,7 +137,10 @@ class AuthService {
             headers: _jsonHeaders,
             body: jsonEncode({"email": email}),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
+
+      print('FORGOT PASSWORD status: ${response.statusCode}');
+      print('FORGOT PASSWORD body:   ${response.body}');
 
       final data = jsonDecode(response.body);
 
@@ -138,7 +154,6 @@ class AuthService {
     }
   }
 
-  /// RESET PASSWORD
   Future<AuthResult> resetPassword({
     required String token,
     required String email,
@@ -157,7 +172,7 @@ class AuthService {
               "password_confirmation": passwordConfirmation,
             }),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
       final data = jsonDecode(response.body);
 
@@ -175,24 +190,19 @@ class AuthService {
   //  TOKEN & USER
   // ─────────────────────────────────────────────
 
-  /// GET STORED TOKEN
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString("token");
   }
 
-  /// GET CURRENT USER
   Future<UserModel?> getCurrentUser() async {
     try {
       final token = await getToken();
       if (token == null) return null;
 
       final response = await http
-          .get(
-            Uri.parse("$baseUrl/me"),
-            headers: await _authHeaders(),
-          )
-          .timeout(const Duration(seconds: 60));
+          .get(Uri.parse("$baseUrl/me"), headers: await _authHeaders())
+          .timeout(const Duration(seconds: 120));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -205,17 +215,12 @@ class AuthService {
     }
   }
 
-  /// LOGOUT
   Future<void> logout() async {
     try {
       await http
-          .post(
-            Uri.parse("$baseUrl/logout"),
-            headers: await _authHeaders(),
-          )
-          .timeout(const Duration(seconds: 60));
+          .post(Uri.parse("$baseUrl/logout"), headers: await _authHeaders())
+          .timeout(const Duration(seconds: 120));
     } catch (_) {
-      // Ignore logout errors — always clear local token
     } finally {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove("token");
@@ -223,10 +228,60 @@ class AuthService {
   }
 
   // ─────────────────────────────────────────────
+  //  WALLET
+  // ─────────────────────────────────────────────
+
+  Future<int?> getWalletId() async {
+    try {
+      final response = await http
+          .get(Uri.parse("$baseUrl/wallet"), headers: await _authHeaders())
+          .timeout(const Duration(seconds: 120));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final wallet = data['data'] ?? data;
+        return int.tryParse((wallet['id'] ?? 0).toString());
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  PROFILE PHOTO
+  // ─────────────────────────────────────────────
+
+  Future<String> uploadProfilePhoto(File imageFile) async {
+    final token = await getToken();
+    if (token == null) throw Exception("User not authenticated");
+
+    final request =
+        http.MultipartRequest('POST', Uri.parse("$baseUrl/profile/photo"))
+          ..headers['Authorization'] = 'Bearer $token'
+          ..headers['Accept'] = 'application/json'
+          ..files.add(
+            await http.MultipartFile.fromPath('photo', imageFile.path),
+          );
+
+    final streamed = await request.send().timeout(const Duration(seconds: 120));
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['photo_url'] as String;
+    }
+
+    final error = jsonDecode(response.body);
+    throw Exception(
+      error['message'] ?? 'Failed to upload photo (${response.statusCode}).',
+    );
+  }
+
+  // ─────────────────────────────────────────────
   //  TRANSACTIONS
   // ─────────────────────────────────────────────
 
-  /// GET ALL TRANSACTIONS
   Future<List<Map<String, dynamic>>> getTransactions() async {
     try {
       final token = await getToken();
@@ -237,22 +292,15 @@ class AuthService {
             Uri.parse("$baseUrl/wallet/transactions"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
-
-      print("[getTransactions] Status: ${response.statusCode}");
-      print("[getTransactions] Body: ${response.body}");
+          .timeout(const Duration(seconds: 120));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
-        if (data is List) {
-          return List<Map<String, dynamic>>.from(data);
-        } else if (data["data"] is List) {
+        if (data is List) return List<Map<String, dynamic>>.from(data);
+        if (data["data"] is List)
           return List<Map<String, dynamic>>.from(data["data"]);
-        } else if (data["transactions"] is List) {
+        if (data["transactions"] is List)
           return List<Map<String, dynamic>>.from(data["transactions"]);
-        }
-
         return [];
       }
 
@@ -263,9 +311,6 @@ class AuthService {
     }
   }
 
-  /// DEPOSIT
-  /// ✅ FIXED: now hits /api/wallet/deposit (SavingWalletController@deposit)
-  ///           which uses firstOrCreate — wallet is never missing
   Future<Map<String, dynamic>> deposit({
     required String amount,
     required String method,
@@ -277,7 +322,7 @@ class AuthService {
 
       final response = await http
           .post(
-            Uri.parse("$baseUrl/wallet/deposit"), // ← FIXED (was /wallet/transactions/deposit)
+            Uri.parse("$baseUrl/wallet/deposit"),
             headers: await _authHeaders(),
             body: jsonEncode({
               "amount": amount,
@@ -285,26 +330,16 @@ class AuthService {
               "description": description ?? "",
             }),
           )
-          .timeout(const Duration(seconds: 60));
-
-      print("[deposit] Status: ${response.statusCode}");
-      print("[deposit] Body: ${response.body}");
+          .timeout(const Duration(seconds: 120));
 
       final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return data;
-      }
-
+      if (response.statusCode == 200 || response.statusCode == 201) return data;
       throw Exception(data["message"] ?? "Deposit failed");
     } catch (e) {
       throw Exception(e.toString());
     }
   }
 
-  /// WITHDRAW
-  /// ✅ FIXED: now hits /api/wallet/withdraw (SavingWalletController@withdraw)
-  ///           which uses firstOrCreate — wallet is never missing
   Future<Map<String, dynamic>> withdraw({
     required String amount,
     required String method,
@@ -317,7 +352,7 @@ class AuthService {
 
       final response = await http
           .post(
-            Uri.parse("$baseUrl/wallet/withdraw"), // ← FIXED (was /wallet/transactions/withdraw)
+            Uri.parse("$baseUrl/wallet/withdraw"),
             headers: await _authHeaders(),
             body: jsonEncode({
               "amount": amount,
@@ -326,18 +361,120 @@ class AuthService {
               if (newBalance != null) "new_balance": newBalance,
             }),
           )
-          .timeout(const Duration(seconds: 60));
-
-      print("[withdraw] Status: ${response.statusCode}");
-      print("[withdraw] Body: ${response.body}");
+          .timeout(const Duration(seconds: 120));
 
       final data = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) return data;
+      throw Exception(data["message"] ?? "Withdraw failed");
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return data;
+  // ─────────────────────────────────────────────
+  //  SAVINGS GOALS
+  // ─────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getSavingsGoals() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse("$baseUrl/savings-goals"),
+            headers: await _authHeaders(),
+          )
+          .timeout(const Duration(seconds: 120));
+
+      print('GOALS status: ${response.statusCode}');
+      print('GOALS body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['data'] is List)
+          return List<Map<String, dynamic>>.from(data['data']);
+        if (data is List) return List<Map<String, dynamic>>.from(data);
+        return [];
       }
 
-      throw Exception(data["message"] ?? "Withdraw failed");
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Failed to load goals');
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  Future<Map<String, dynamic>> createSavingsGoal({
+    required int savingsWalletId,
+    required String name,
+    required String targetAmount,
+    String? targetDate,
+  }) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse("$baseUrl/savings-goals"),
+            headers: await _authHeaders(),
+            body: jsonEncode({
+              "savings_wallet_id": savingsWalletId,
+              "name": name,
+              "target_amount": targetAmount,
+              if (targetDate != null && targetDate.isNotEmpty)
+                "target_date": targetDate,
+            }),
+          )
+          .timeout(const Duration(seconds: 120));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) return data;
+      throw Exception(data['message'] ?? 'Failed to create goal');
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  Future<Map<String, dynamic>> updateSavingsGoal(
+    dynamic id, {
+    String? name,
+    String? targetAmount,
+    String? targetDate,
+    String? status,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (name != null) body['name'] = name;
+      if (targetAmount != null) body['target_amount'] = targetAmount;
+      if (targetDate != null && targetDate.isNotEmpty)
+        body['target_date'] = targetDate;
+      if (status != null) body['status'] = status;
+
+      final response = await http
+          .put(
+            Uri.parse("$baseUrl/savings-goals/$id"),
+            headers: await _authHeaders(),
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 120));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) return data;
+      throw Exception(data['message'] ?? 'Failed to update goal');
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  Future<void> deleteSavingsGoal(dynamic id) async {
+    try {
+      final response = await http
+          .delete(
+            Uri.parse("$baseUrl/savings-goals/$id"),
+            headers: await _authHeaders(),
+          )
+          .timeout(const Duration(seconds: 120));
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        final data = jsonDecode(response.body);
+        throw Exception(data['message'] ?? 'Failed to cancel goal');
+      }
     } catch (e) {
       throw Exception(e.toString());
     }
@@ -361,14 +498,10 @@ class AuthService {
             headers: await _authHeaders(),
             body: jsonEncode({"subject": subject, "message": message}),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
       final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return data;
-      }
-
+      if (response.statusCode == 200 || response.statusCode == 201) return data;
       throw Exception(data["message"] ?? "Failed to send support ticket");
     } catch (e) {
       throw Exception(e.toString());
@@ -386,12 +519,9 @@ class AuthService {
             Uri.parse("$baseUrl/notifications"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
-
+      if (response.statusCode == 200) return jsonDecode(response.body);
       throw Exception("Failed to load notifications");
     } catch (e) {
       throw Exception(e.toString());
@@ -405,13 +535,12 @@ class AuthService {
             Uri.parse("$baseUrl/notifications/unread-count"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['count'] ?? 0;
       }
-
       return 0;
     } catch (e) {
       return 0;
@@ -425,7 +554,7 @@ class AuthService {
             Uri.parse("$baseUrl/notifications/$id/read"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
     } catch (_) {}
   }
 
@@ -436,7 +565,7 @@ class AuthService {
             Uri.parse("$baseUrl/notifications/read-all"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
     } catch (_) {}
   }
 
@@ -447,7 +576,7 @@ class AuthService {
             Uri.parse("$baseUrl/notifications/$id"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
     } catch (_) {}
   }
 
@@ -462,15 +591,13 @@ class AuthService {
             Uri.parse("$baseUrl/auto-savings"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
-
-      print("[getAutoSavings] Status: ${response.statusCode}");
-      print("[getAutoSavings] Body: ${response.body}");
+          .timeout(const Duration(seconds: 120));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        if (data['data'] is List)
+          return List<Map<String, dynamic>>.from(data['data']);
         if (data is List) return List<Map<String, dynamic>>.from(data);
-        if (data['data'] is List) return List<Map<String, dynamic>>.from(data['data']);
         return [];
       }
 
@@ -504,10 +631,7 @@ class AuthService {
                   "AUTO-${DateTime.now().millisecondsSinceEpoch}",
             }),
           )
-          .timeout(const Duration(seconds: 60));
-
-      print("[createAutoSaving] Status: ${response.statusCode}");
-      print("[createAutoSaving] Body: ${response.body}");
+          .timeout(const Duration(seconds: 120));
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) return data;
@@ -524,7 +648,7 @@ class AuthService {
             Uri.parse("$baseUrl/auto-savings/$id/pause"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) return data;
@@ -541,7 +665,7 @@ class AuthService {
             Uri.parse("$baseUrl/auto-savings/$id/resume"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) return data;
@@ -558,7 +682,7 @@ class AuthService {
             Uri.parse("$baseUrl/auto-savings/$id"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
       if (response.statusCode != 200 && response.statusCode != 204) {
         final data = jsonDecode(response.body);
@@ -580,21 +704,28 @@ class AuthService {
             Uri.parse("$baseUrl/locked-savings"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
-      print("[getLockedSavings] Status: ${response.statusCode}");
-      print("[getLockedSavings] Body: ${response.body}");
+      print('LOCKED SAVINGS status: ${response.statusCode}');
+      print('LOCKED SAVINGS body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data is List) return List<Map<String, dynamic>>.from(data);
-        if (data['data'] is List) return List<Map<String, dynamic>>.from(data['data']);
+
+        // ✅ Check 'data' key first
+        if (data['data'] is List) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+        if (data is List) {
+          return List<Map<String, dynamic>>.from(data);
+        }
         return [];
       }
 
       final error = jsonDecode(response.body);
       throw Exception(error['message'] ?? 'Failed to load locked savings');
     } catch (e) {
+      print('LOCKED SAVINGS error: $e');
       throw Exception(e.toString());
     }
   }
@@ -615,15 +746,16 @@ class AuthService {
               "duration_months": durationMonths,
             }),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
-      print("[createLockedSaving] Status: ${response.statusCode}");
-      print("[createLockedSaving] Body: ${response.body}");
+      print('CREATE LOCKED status: ${response.statusCode}');
+      print('CREATE LOCKED body: ${response.body}');
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) return data;
       throw Exception(data['message'] ?? 'Failed to create locked saving');
     } catch (e) {
+      print('CREATE LOCKED error: $e');
       throw Exception(e.toString());
     }
   }
@@ -635,16 +767,47 @@ class AuthService {
             Uri.parse("$baseUrl/locked-savings/$id/withdraw"),
             headers: await _authHeaders(),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
-      print("[withdrawLockedSaving] Status: ${response.statusCode}");
-      print("[withdrawLockedSaving] Body: ${response.body}");
+      print('WITHDRAW LOCKED status: ${response.statusCode}');
+      print('WITHDRAW LOCKED body: ${response.body}');
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) return data;
       throw Exception(data['message'] ?? 'Withdrawal failed');
     } catch (e) {
+      print('WITHDRAW LOCKED error: $e');
       throw Exception(e.toString());
     }
   }
+
+  // ─────────────────────────────────────────────
+  //  SUPPORT TICKETS
+  // ─────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getTickets() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse("$baseUrl/support-tickets"),
+            headers: await _authHeaders(),
+          )
+          .timeout(const Duration(seconds: 120));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) return List<Map<String, dynamic>>.from(data);
+        if (data['data'] is List)
+          return List<Map<String, dynamic>>.from(data['data']);
+        if (data['tickets'] is List)
+          return List<Map<String, dynamic>>.from(data['tickets']);
+        return [];
+      }
+      throw Exception("Failed to load tickets");
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  // Temporary test
 }

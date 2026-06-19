@@ -15,7 +15,7 @@ android {
         jvmTarget = JavaVersion.VERSION_11.toString()
     }
     defaultConfig {
-        applicationId = "com.example.flutter_application_1"
+        applicationId = "com.example.umoja_finance_services"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

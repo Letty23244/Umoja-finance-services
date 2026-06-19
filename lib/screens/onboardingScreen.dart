@@ -1,5 +1,6 @@
 // ignore: file_names
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:umoja_finance_services/authScreens/login_screens.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -19,10 +20,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  Future<void> _completeOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('seen_onboarding', true);
+
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFD7E8BA), // soft background tone
+      backgroundColor: const Color(0xFFD7E8BA),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: PageView(
@@ -44,7 +57,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   'Manage your savings, apply for affordable loans, and grow your financial future.',
             ),
             buildPage(
-              image: 'images/women2.png',
+              image: 'images/laddy.png',
               title: 'Access Anywhere, Anytime',
               description:
                   'join your sacco sisters together ,grow  ,save in building a brighter financial future.',
@@ -60,17 +73,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8BC34A), // Umoja light green
+                  backgroundColor: const Color(0xFF8BC34A),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                },
+                onPressed: _completeOnboarding,
                 child: const Text(
                   'start your journey',
                   style: TextStyle(fontSize: 20, color: Colors.brown),
@@ -85,12 +93,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 children: [
                   TextButton(
                     style: TextButton.styleFrom(
-                      backgroundColor: const Color(0xFFA1887F), // Light brown background
+                      backgroundColor: const Color(0xFFA1887F),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () => _controller.jumpToPage(2),
+                    onPressed: _completeOnboarding,
                     child: const Text(
                       'join later',
                       style: TextStyle(color: Colors.white, fontSize: 16),
@@ -98,7 +106,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   TextButton(
                     style: TextButton.styleFrom(
-                      backgroundColor: const Color(0xFFA1887F), // Light brown background
+                      backgroundColor: const Color(0xFFA1887F),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -126,14 +134,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Image.asset(image, height: 280),
+        Image.asset(
+          image,
+          height: 280,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              height: 280,
+              color: Colors.grey.shade200,
+              child: const Center(
+                child: Icon(Icons.image_not_supported,
+                    size: 80, color: Colors.grey),
+              ),
+            );
+          },
+        ),
         const SizedBox(height: 30),
         Text(
           title,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF4E342E), // dark brown for strong contrast
+            color: Color(0xFF4E342E),
           ),
         ),
         const SizedBox(height: 15),

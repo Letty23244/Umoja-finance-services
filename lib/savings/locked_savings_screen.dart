@@ -34,9 +34,12 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _fadeAnim  = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _fadeAnim = CurvedAnimation(
+        parent: _animController, curve: Curves.easeOut);
+    _slideAnim =
+        Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+            .animate(CurvedAnimation(
+                parent: _animController, curve: Curves.easeOut));
     _loadSavings();
   }
 
@@ -47,14 +50,29 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
   }
 
   Future<void> _loadSavings() async {
-    setState(() { _isLoading = true; _errorMessage = null; });
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
+      // ← debug
+      final token = await AuthService().getToken();
+      print('TOKEN USED: $token');
+
       final data = await AuthService().getLockedSavings();
-      setState(() { _savings = data; _isLoading = false; });
+      print('SAVINGS COUNT: ${data.length}');
+      print('SAVINGS DATA: $data');
+
+      setState(() {
+        _savings = data;
+        _isLoading = false;
+      });
       _animController.forward(from: 0);
     } catch (e) {
+      print('LOAD ERROR: $e');
       setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage =
+            e.toString().replaceFirst('Exception: ', '');
         _isLoading = false;
       });
     }
@@ -64,16 +82,19 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
         title: const Text('Early Withdrawal?',
-            style: TextStyle(fontWeight: FontWeight.w800, color: _darkText)),
+            style: TextStyle(
+                fontWeight: FontWeight.w800, color: _darkText)),
         content: Text(
             'Withdraw from "$name"? Early withdrawal may incur penalties.',
             style: const TextStyle(color: _mutedText)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: _mutedText)),
+            child: const Text('Cancel',
+                style: TextStyle(color: _mutedText)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -95,7 +116,9 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
         _showSnack('Withdrawal successful', Colors.green);
         _loadSavings();
       } catch (e) {
-        _showSnack(e.toString().replaceFirst('Exception: ', ''), Colors.red);
+        _showSnack(
+            e.toString().replaceFirst('Exception: ', ''),
+            Colors.red);
       }
     }
   }
@@ -103,18 +126,20 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
   void _showSnack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, style: const TextStyle(color: Colors.white)),
+        content:
+            Text(msg, style: const TextStyle(color: Colors.white)),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 
   void _showNewLockSheet() {
-    final nameCtrl      = TextEditingController();
-    final amountCtrl    = TextEditingController();
-    final durationCtrl  = TextEditingController();
+    final nameCtrl     = TextEditingController();
+    final amountCtrl   = TextEditingController();
+    final durationCtrl = TextEditingController();
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -122,141 +147,163 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Container(
+        builder: (ctx, setModal) => Padding(
           padding: EdgeInsets.only(
-            left: 24, right: 24, top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 32,
-          ),
-          decoration: const BoxDecoration(
-            color: _cardWhite,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle
-              Center(
-                child: Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Icon + Title
-              Row(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            padding:
+                const EdgeInsets.fromLTRB(24, 24, 24, 32),
+            decoration: const BoxDecoration(
+              color: _cardWhite,
+              borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(28)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _amberLight,
-                      borderRadius: BorderRadius.circular(12),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                    child: const Icon(Icons.lock_rounded,
-                        color: _amber, size: 22),
                   ),
-                  const SizedBox(width: 12),
-                  const Text('Lock New Savings',
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: _darkText)),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: _amberLight,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.lock_rounded,
+                            color: _amber, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text('Lock New Savings',
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: _darkText)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Locked savings earn more — funds are held until maturity.',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade400),
+                  ),
+                  const SizedBox(height: 20),
+                  _sheetField(
+                      nameCtrl,
+                      'Savings Name (e.g. Land Fund)',
+                      Icons.label_outline),
+                  const SizedBox(height: 14),
+                  _sheetField(amountCtrl, 'Amount (UGX)',
+                      Icons.attach_money,
+                      isNumber: true),
+                  const SizedBox(height: 14),
+                  _sheetField(
+                      durationCtrl,
+                      'Lock Duration (months)',
+                      Icons.lock_clock_outlined,
+                      isNumber: true),
+                  const SizedBox(height: 6),
+                  Text(
+                    'e.g. 3 = locked for 3 months',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade400),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _amber,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      onPressed: isSaving
+                          ? null
+                          : () async {
+                              if (nameCtrl.text.isEmpty ||
+                                  amountCtrl.text.isEmpty ||
+                                  durationCtrl.text.isEmpty) {
+                                _showSnack(
+                                    'Please fill all fields',
+                                    Colors.red);
+                                return;
+                              }
+                              setModal(
+                                  () => isSaving = true);
+                              try {
+                                await AuthService()
+                                    .createLockedSaving(
+                                  name: nameCtrl.text,
+                                  amount: amountCtrl.text,
+                                  durationMonths:
+                                      durationCtrl.text,
+                                );
+                                if (ctx.mounted)
+                                  Navigator.pop(ctx);
+                                _showSnack('Savings locked!',
+                                    Colors.green);
+                                _loadSavings();
+                              } catch (e) {
+                                setModal(
+                                    () => isSaving = false);
+                                _showSnack(
+                                    e.toString().replaceFirst(
+                                        'Exception: ', ''),
+                                    Colors.red);
+                              }
+                            },
+                      child: isSaving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2))
+                          : const Text('Lock Savings',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15)),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Text('Locked savings earn more — funds are held until maturity.',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade400)),
-              const SizedBox(height: 20),
-
-              // Name
-              _sheetField(nameCtrl, 'Savings Name (e.g. Land Fund)',
-                  Icons.label_outline),
-              const SizedBox(height: 14),
-
-              // Amount
-              _sheetField(amountCtrl, 'Amount (UGX)',
-                  Icons.attach_money, isNumber: true),
-              const SizedBox(height: 14),
-
-              // Duration
-              _sheetField(durationCtrl, 'Lock Duration (months)',
-                  Icons.lock_clock_outlined, isNumber: true),
-              const SizedBox(height: 8),
-              Text('e.g. 3 = locked for 3 months',
-                  style: TextStyle(
-                      fontSize: 11, color: Colors.grey.shade400)),
-              const SizedBox(height: 24),
-
-              // Submit
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _amber,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                  ),
-                  onPressed: isSaving
-                      ? null
-                      : () async {
-                          if (nameCtrl.text.isEmpty ||
-                              amountCtrl.text.isEmpty ||
-                              durationCtrl.text.isEmpty) {
-                            _showSnack('Please fill all fields', Colors.red);
-                            return;
-                          }
-                          setModal(() => isSaving = true);
-                          try {
-                            await AuthService().createLockedSaving(
-                              name: nameCtrl.text,
-                              amount: amountCtrl.text,
-                              durationMonths: durationCtrl.text,
-                            );
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            _showSnack('Savings locked!', Colors.green);
-                            _loadSavings();
-                          } catch (e) {
-                            setModal(() => isSaving = false);
-                            _showSnack(
-                                e.toString().replaceFirst('Exception: ', ''),
-                                Colors.red);
-                          }
-                        },
-                  child: isSaving
-                      ? const SizedBox(
-                          height: 20, width: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                      : const Text('Lock Savings',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15)),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _sheetField(TextEditingController ctrl, String hint, IconData icon,
+  Widget _sheetField(
+      TextEditingController ctrl, String hint, IconData icon,
       {bool isNumber = false}) {
     return TextField(
       controller: ctrl,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      keyboardType:
+          isNumber ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        hintStyle: TextStyle(
+            color: Colors.grey.shade400, fontSize: 13),
         prefixIcon: Icon(icon, color: _amber, size: 20),
         filled: true,
         fillColor: _amberLight,
@@ -264,16 +311,21 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 14),
       ),
     );
   }
 
-  // ── Totals ─────────────────────────────────────────────
-  double get _totalLocked => _savings.fold(0.0, (s, e) =>
-      s + (double.tryParse(
-          e['amount']?.toString().replaceAll(',', '') ?? '0') ?? 0));
+  double get _totalLocked => _savings.fold(
+      0.0,
+      (s, e) =>
+          s +
+          (double.tryParse(e['amount']
+                      ?.toString()
+                      .replaceAll(',', '') ??
+                  '0') ??
+              0));
 
   int get _maturedCount => _savings
       .where((s) => s['status']?.toString() == 'matured')
@@ -285,7 +337,6 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
       backgroundColor: _bgColor,
       body: CustomScrollView(
         slivers: [
-          // ── Sliver App Bar ───────────────────────────────
           SliverAppBar(
             expandedHeight: 250,
             pinned: true,
@@ -303,23 +354,16 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
               background: _buildAppBarBg(),
             ),
           ),
-
-          // ── Loading ──────────────────────────────────────
           if (_isLoading)
             const SliverFillRemaining(child: _LoadingState())
-
-          // ── Error ────────────────────────────────────────
           else if (_errorMessage != null)
             SliverFillRemaining(
               child: _ErrorState(
-                  message: _errorMessage!, onRetry: _loadSavings),
+                  message: _errorMessage!,
+                  onRetry: _loadSavings),
             )
-
-          // ── Empty ────────────────────────────────────────
           else if (_savings.isEmpty)
             SliverFillRemaining(child: _buildEmptyState())
-
-          // ── List ─────────────────────────────────────────
           else ...[
             SliverToBoxAdapter(
               child: FadeTransition(
@@ -327,7 +371,8 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
                 child: SlideTransition(
                   position: _slideAnim,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                    padding: const EdgeInsets.fromLTRB(
+                        20, 20, 20, 8),
                     child: Text(
                       '${_savings.length} locked saving${_savings.length == 1 ? '' : 's'}',
                       style: const TextStyle(
@@ -340,7 +385,8 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+              padding:
+                  const EdgeInsets.fromLTRB(16, 0, 16, 32),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
@@ -351,7 +397,8 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
                         saving: saving,
                         onWithdraw: () => _withdrawSaving(
                             saving['id'],
-                            saving['name']?.toString() ?? 'Savings'),
+                            saving['name']?.toString() ??
+                                'Savings'),
                       ),
                     );
                   },
@@ -365,16 +412,19 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showNewLockSheet,
         backgroundColor: _amber,
-        icon: const Icon(Icons.lock_rounded, color: Colors.white),
+        icon: const Icon(Icons.lock_rounded,
+            color: Colors.white),
         label: const Text('Lock Savings',
             style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.w700)),
+                color: Colors.white,
+                fontWeight: FontWeight.w700)),
       ),
     );
   }
 
   Widget _buildAppBarBg() {
-    final totalFormatted = _totalLocked.toInt()
+    final totalFormatted = _totalLocked
+        .toInt()
         .toString()
         .replaceAllMapped(
             RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -391,9 +441,11 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
       child: Stack(
         children: [
           Positioned(
-            top: -40, right: -30,
+            top: -40,
+            right: -30,
             child: Container(
-              width: 200, height: 200,
+              width: 200,
+              height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withOpacity(0.06),
@@ -443,17 +495,20 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
                 if (!_isLoading && _errorMessage == null)
                   Row(
                     children: [
-                      _summaryCard('Total Locked',
+                      _summaryCard(
+                          'Total Locked',
                           'UGX $totalFormatted',
                           Icons.lock_rounded,
                           Colors.amberAccent.shade100),
                       const SizedBox(width: 10),
-                      _summaryCard('Matured',
+                      _summaryCard(
+                          'Matured',
                           '$_maturedCount ready',
                           Icons.lock_open_rounded,
                           Colors.greenAccent.shade200),
                       const SizedBox(width: 10),
-                      _summaryCard('Total',
+                      _summaryCard(
+                          'Total',
                           '${_savings.length} vaults',
                           Icons.savings_rounded,
                           Colors.white70),
@@ -471,11 +526,13 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
       String label, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.12)),
+          border:
+              Border.all(color: Colors.white.withOpacity(0.12)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -507,11 +564,10 @@ class _LockedSavingsScreenState extends State<LockedSavingsScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 90, height: 90,
+            width: 90,
+            height: 90,
             decoration: const BoxDecoration(
-              color: _amberLight,
-              shape: BoxShape.circle,
-            ),
+                color: _amberLight, shape: BoxShape.circle),
             child: Icon(Icons.lock_outline_rounded,
                 size: 40, color: _amber.withOpacity(0.5)),
           ),
@@ -536,10 +592,8 @@ class _LockedSavingsTile extends StatelessWidget {
   final Map<String, dynamic> saving;
   final VoidCallback onWithdraw;
 
-  const _LockedSavingsTile({
-    required this.saving,
-    required this.onWithdraw,
-  });
+  const _LockedSavingsTile(
+      {required this.saving, required this.onWithdraw});
 
   String _str(String key, [String fallback = '']) =>
       saving[key]?.toString() ?? fallback;
@@ -553,29 +607,37 @@ class _LockedSavingsTile extends StatelessWidget {
 
   Color get _statusColor {
     switch (_str('status')) {
-      case 'active':   return _amber;
-      case 'matured':  return Colors.green;
-      case 'withdrawn': return Colors.grey;
-      default:         return Colors.grey;
+      case 'active':
+        return _amber;
+      case 'matured':
+        return Colors.green;
+      case 'withdrawn':
+        return Colors.grey;
+      default:
+        return Colors.grey;
     }
   }
 
   IconData get _statusIcon {
     switch (_str('status')) {
-      case 'active':    return Icons.lock_rounded;
-      case 'matured':   return Icons.lock_open_rounded;
-      case 'withdrawn': return Icons.check_circle_outline_rounded;
-      default:          return Icons.savings_rounded;
+      case 'active':
+        return Icons.lock_rounded;
+      case 'matured':
+        return Icons.lock_open_rounded;
+      case 'withdrawn':
+        return Icons.check_circle_outline_rounded;
+      default:
+        return Icons.savings_rounded;
     }
   }
 
-  // Simple progress: days elapsed / total days
   double _progress() {
     try {
-      final start   = DateTime.parse(_str('created_at'));
-      final months  = int.tryParse(_str('duration_months', '1')) ?? 1;
-      final end     = DateTime(start.year, start.month + months, start.day);
-      final now     = DateTime.now();
+      final start  = DateTime.parse(_str('created_at'));
+      final months = int.tryParse(_str('duration_months', '1')) ?? 1;
+      final end    = DateTime(
+          start.year, start.month + months, start.day);
+      final now    = DateTime.now();
       if (now.isAfter(end)) return 1.0;
       final total   = end.difference(start).inDays;
       final elapsed = now.difference(start).inDays;
@@ -587,11 +649,12 @@ class _LockedSavingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status   = _str('status', 'active');
-    final amount   = _fmt(_str('amount', '0'));
-    final name     = _str('name', 'Locked Savings');
-    final duration = _str('duration_months', '—');
-    final maturesOn = _str('maturity_date', _str('matures_at', '—'));
+    final status    = _str('status', 'active');
+    final amount    = _fmt(_str('amount', '0'));
+    final name      = _str('name', 'Locked Savings');
+    final duration  = _str('duration_months', '—');
+    final maturesOn =
+        _str('maturity_date', _str('matures_at', '—'));
     final progress  = _progress();
     final pct       = (progress * 100).toStringAsFixed(0);
 
@@ -613,16 +676,17 @@ class _LockedSavingsTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──────────────────────────────────
             Row(
               children: [
                 Container(
-                  width: 44, height: 44,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: _statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: Icon(_statusIcon, color: _statusColor, size: 20),
+                  child: Icon(_statusIcon,
+                      color: _statusColor, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -635,11 +699,13 @@ class _LockedSavingsTile extends StatelessWidget {
                               fontSize: 14,
                               color: _darkText)),
                       const SizedBox(height: 3),
-                      Text('UGX $amount · $duration month${duration == '1' ? '' : 's'}',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
-                              fontWeight: FontWeight.w500)),
+                      Text(
+                        'UGX $amount · $duration month${duration == '1' ? '' : 's'}',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w500),
+                      ),
                     ],
                   ),
                 ),
@@ -650,19 +716,15 @@ class _LockedSavingsTile extends StatelessWidget {
                     color: _statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(
-                    status.toUpperCase(),
-                    style: TextStyle(
-                        color: _statusColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800),
-                  ),
+                  child: Text(status.toUpperCase(),
+                      style: TextStyle(
+                          color: _statusColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800)),
                 ),
               ],
             ),
             const SizedBox(height: 14),
-
-            // ── Progress bar ─────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -685,19 +747,16 @@ class _LockedSavingsTile extends StatelessWidget {
                 value: progress,
                 minHeight: 6,
                 backgroundColor: Colors.grey.shade100,
-                valueColor: AlwaysStoppedAnimation(_statusColor),
+                valueColor:
+                    AlwaysStoppedAnimation(_statusColor),
               ),
             ),
             const SizedBox(height: 12),
-
-            // ── Maturity chip ────────────────────────────
             if (maturesOn != '—')
               _chip(Icons.event_available_rounded,
                   'Matures: $maturesOn', Colors.teal),
-
-            const Divider(height: 20, color: Color(0xFFF0F0F0)),
-
-            // ── Action ───────────────────────────────────
+            const Divider(
+                height: 20, color: Color(0xFFF0F0F0)),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -711,7 +770,8 @@ class _LockedSavingsTile extends StatelessWidget {
                         color: status == 'matured'
                             ? Colors.green.withOpacity(0.1)
                             : Colors.orange.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius:
+                            BorderRadius.circular(10),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -751,7 +811,8 @@ class _LockedSavingsTile extends StatelessWidget {
 
   Widget _chip(IconData icon, String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(8),
@@ -781,7 +842,8 @@ class _LoadingState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(color: _amber, strokeWidth: 2.5),
+          const CircularProgressIndicator(
+              color: _amber, strokeWidth: 2.5),
           const SizedBox(height: 16),
           Text('Loading savings...',
               style: TextStyle(
@@ -798,7 +860,8 @@ class _LoadingState extends StatelessWidget {
 class _ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
-  const _ErrorState({required this.message, required this.onRetry});
+  const _ErrorState(
+      {required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -809,7 +872,8 @@ class _ErrorState extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 80, height: 80,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 color: Colors.red.withOpacity(0.08),
                 shape: BoxShape.circle,

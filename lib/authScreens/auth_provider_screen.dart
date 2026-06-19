@@ -39,7 +39,6 @@ class AuthProvider extends ChangeNotifier {
   String? get userRole => _user?.role;
 
   /// ================= INIT APP =================
-  /// Call this in main.dart
   Future<void> init() async {
     _setLoading();
 
@@ -105,19 +104,29 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setLoading();
 
-    final AuthResult result = await _authService.signUp(
-      name: name,
-      email: email,
-      phone: phone,
-      password: password,
-      passwordConfirmation: passwordConfirmation,
-    );
+    // Try up to 2 times to handle Render cold start
+    AuthResult result = AuthResult.failure("Timeout");
+
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      result = await _authService.signUp(
+        name: name,
+        email: email,
+        phone: phone,
+        password: password,
+        passwordConfirmation: passwordConfirmation,
+      );
+
+      // If not a timeout error, stop retrying
+      if (result.isSuccess ||
+          !(result.errorMessage?.contains('Timeout') ?? false)) {
+        break;
+      }
+    }
 
     if (result.isSuccess) {
       _user = result.user;
       _emailVerified = false;
       _status = AuthStatus.authenticated;
-
       _successMessage = result.message;
       notifyListeners();
       return true;

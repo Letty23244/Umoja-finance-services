@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:umoja_finance_services/authScreens/auth_services_screen.dart';
+import 'package:umoja_finance_services/authScreens/password_reset_sent_screen.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -9,54 +11,69 @@ class ChangePasswordScreen extends StatefulWidget {
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   static const Color primaryBrown = Color(0xFF795548);
-  static const Color lightGreen   = Color(0xFFD7E8BA);
-  static const Color bgColor      = Color(0xFFF5F5F0);
+  static const Color lightGreen = Color(0xFFD7E8BA);
+  static const Color bgColor = Color(0xFFF5F5F0);
 
-  final _formKey        = GlobalKey<FormState>();
-  final _oldController  = TextEditingController();
-  final _newController  = TextEditingController();
-  final _confController = TextEditingController();
+  bool _isLoading = false;
+  String? _userEmail;
 
-  bool _obscureOld     = true;
-  bool _obscureNew     = true;
-  bool _obscureConfirm = true;
-  bool _isLoading      = false;
-
-  // Password strength
-  String _strength     = '';
-  Color  _strengthColor = Colors.grey;
-
-  void _checkStrength(String value) {
-    setState(() {
-      if (value.isEmpty) {
-        _strength = '';
-        _strengthColor = Colors.grey;
-      } else if (value.length < 6) {
-        _strength = 'Weak';
-        _strengthColor = Colors.red;
-      } else if (value.length < 10) {
-        _strength = 'Medium';
-        _strengthColor = Colors.orange;
-      } else {
-        _strength = 'Strong';
-        _strengthColor = Colors.green;
-      }
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadUserEmail();
   }
 
-  void _submit() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      await Future.delayed(const Duration(seconds: 1)); // simulate API call
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password updated successfully!'),
-          backgroundColor: Colors.green,
-        ),
+  Future<void> _loadUserEmail() async {
+    final user = await AuthService().getCurrentUser();
+    if (mounted) setState(() => _userEmail = user?.email);
+  }
+
+  Future<void> _sendResetLink() async {
+    if (_userEmail == null || _userEmail!.isEmpty) {
+      _showSnack(
+        'Could not load your email. Please try again.',
+        success: false,
       );
-      Navigator.pop(context);
+      return;
     }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await AuthService().forgotPassword(_userEmail!);
+
+      if (result.isSuccess) {
+        if (mounted) {
+          // Navigate to the waiting screen (same pattern as email verification)
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PasswordResetSentScreen(email: _userEmail!),
+            ),
+          );
+        }
+      } else {
+        _showSnack(
+          result.message ?? result.errorMessage ?? 'Failed to send reset link.',
+          success: false,
+        );
+      }
+    } catch (e) {
+      _showSnack(e.toString().replaceFirst('Exception: ', ''), success: false);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showSnack(String msg, {required bool success}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: success ? Colors.green : Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
@@ -64,7 +81,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        title: const Text('Change Password', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Change Password',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: primaryBrown,
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -73,7 +93,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-
             // ── Header Banner ──────────────────────────────
             Container(
               width: double.infinity,
@@ -93,159 +112,167 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       color: Colors.white24,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(Icons.lock_reset, color: lightGreen, size: 40),
+                    child: const Icon(
+                      Icons.lock_reset,
+                      color: lightGreen,
+                      size: 40,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Update Your Password',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    'Reset Your Password',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Keep your account secure with a strong password',
+                    'We\'ll send a reset link to your email address',
                     style: TextStyle(color: Colors.white70, fontSize: 13),
                     textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
 
-            // ── Form ──────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-
-                    // Current Password
-                    const Text('Current Password', style: TextStyle(fontWeight: FontWeight.w600, color: primaryBrown, fontSize: 13)),
-                    const SizedBox(height: 8),
-                    _buildField(
-                      controller: _oldController,
-                      hint: 'Enter current password',
-                      obscure: _obscureOld,
-                      toggle: () => setState(() => _obscureOld = !_obscureOld),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Please enter your current password';
-                        return null;
-                      },
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  // ── Email display tile ─────────────────
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(color: Colors.grey.shade200, blurRadius: 10),
+                      ],
                     ),
-                    const SizedBox(height: 20),
-
-                    // New Password
-                    const Text('New Password', style: TextStyle(fontWeight: FontWeight.w600, color: primaryBrown, fontSize: 13)),
-                    const SizedBox(height: 8),
-                    _buildField(
-                      controller: _newController,
-                      hint: 'Enter new password',
-                      obscure: _obscureNew,
-                      toggle: () => setState(() => _obscureNew = !_obscureNew),
-                      onChanged: _checkStrength,
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Please enter a new password';
-                        if (v.length < 6) return 'Password must be at least 6 characters';
-                        return null;
-                      },
-                    ),
-
-                    // Strength indicator
-                    if (_strength.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: _strength == 'Weak' ? 0.33 : _strength == 'Medium' ? 0.66 : 1.0,
-                                minHeight: 6,
-                                backgroundColor: Colors.grey.shade200,
-                                valueColor: AlwaysStoppedAnimation<Color>(_strengthColor),
-                              ),
-                            ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: lightGreen,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            _strength,
-                            style: TextStyle(color: _strengthColor, fontSize: 12, fontWeight: FontWeight.bold),
+                          child: const Icon(
+                            Icons.email_outlined,
+                            color: primaryBrown,
+                            size: 22,
                           ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 20),
-
-                    // Confirm Password
-                    const Text('Confirm New Password', style: TextStyle(fontWeight: FontWeight.w600, color: primaryBrown, fontSize: 13)),
-                    const SizedBox(height: 8),
-                    _buildField(
-                      controller: _confController,
-                      hint: 'Re-enter new password',
-                      obscure: _obscureConfirm,
-                      toggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Please confirm your password';
-                        if (v != _newController.text) return 'Passwords do not match';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Password tips
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: lightGreen.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: lightGreen),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.tips_and_updates, color: primaryBrown, size: 16),
-                              SizedBox(width: 6),
-                              Text('Password Tips', style: TextStyle(fontWeight: FontWeight.bold, color: primaryBrown, fontSize: 13)),
+                              const Text(
+                                'Reset link will be sent to',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              _userEmail == null
+                                  ? const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                        color: primaryBrown,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      _userEmail!,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryBrown,
+                                      ),
+                                    ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          _tip('Use at least 8 characters'),
-                          _tip('Include uppercase and lowercase letters'),
-                          _tip('Add numbers and special characters'),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Submit Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryBrown,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          elevation: 2,
                         ),
-                        onPressed: _isLoading ? null : _submit,
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(color: lightGreen, strokeWidth: 2),
-                              )
-                            : const Text(
-                                'Update Password',
-                                style: TextStyle(color: lightGreen, fontWeight: FontWeight.bold, fontSize: 16),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── Info box ───────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: lightGreen.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: lightGreen),
+                    ),
+                    child: Column(
+                      children: [
+                        _infoRow(
+                          Icons.info_outline,
+                          'A password reset link will be sent to your registered email address.',
+                        ),
+                        const SizedBox(height: 8),
+                        _infoRow(
+                          Icons.timer_outlined,
+                          'The link will expire after 60 minutes.',
+                        ),
+                        const SizedBox(height: 8),
+                        _infoRow(
+                          Icons.mail_outline,
+                          'Check your spam folder if you don\'t see it in your inbox.',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // ── Send button ────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryBrown,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 2,
+                      ),
+                      onPressed: (_isLoading || _userEmail == null)
+                          ? null
+                          : _sendResetLink,
+                      icon: _isLoading
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                color: lightGreen,
+                                strokeWidth: 2,
                               ),
+                            )
+                          : const Icon(
+                              Icons.send_outlined,
+                              color: lightGreen,
+                              size: 18,
+                            ),
+                      label: Text(
+                        _isLoading ? 'Sending…' : 'Send Reset Link',
+                        style: const TextStyle(
+                          color: lightGreen,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 40),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -254,70 +281,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  Widget _buildField({
-    required TextEditingController controller,
-    required String hint,
-    required bool obscure,
-    required VoidCallback toggle,
-    String? Function(String?)? validator,
-    void Function(String)? onChanged,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscure,
-      onChanged: onChanged,
-      validator: validator,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade200),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade200),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: primaryBrown, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-        suffixIcon: IconButton(
-          icon: Icon(
-            obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-            color: primaryBrown,
+  Widget _infoRow(IconData icon, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: primaryBrown, size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 12, color: primaryBrown),
           ),
-          onPressed: toggle,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
+      ],
     );
-  }
-
-  Widget _tip(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_outline, color: primaryBrown, size: 14),
-          const SizedBox(width: 6),
-          Text(text, style: const TextStyle(fontSize: 12, color: primaryBrown)),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _oldController.dispose();
-    _newController.dispose();
-    _confController.dispose();
-    super.dispose();
   }
 }
